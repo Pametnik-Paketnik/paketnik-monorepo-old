@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -16,7 +17,11 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT');
+  await app.listen(port ?? 3000);
+
+  console.log(`🚀 Server is running on http://localhost:${port}`);
 }
 bootstrap().catch((err) => {
   console.error('Failed to start application:', err);
