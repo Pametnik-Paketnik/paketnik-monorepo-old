@@ -1,28 +1,23 @@
-import { useState } from 'react'
-import './App.css'
-import { Button } from './components/ui/button'
+import React from 'react'
+import { Outlet, Link } from 'react-router-dom'
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-    <>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <Button onClick={() => setCount((count) => count + 1)}>Button {count}</Button>
-        <Button variant="secondary" onClick={() => setCount((count) => count + 1)}>Button {count}</Button>
-        <Button variant="destructive" onClick={() => setCount((count) => count + 1)}>Button {count}</Button>
-        <Button variant="secondary" onClick={() => setCount((count) => count + 1)}>Button {count}</Button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <span className="text-red-500">That is tailwind test</span>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div>
+      <nav>
+        <ul>
+          <li>
+            <Link to="/">Home</Link>
+          </li>
+          <li>
+            <Link to="/about">About</Link>
+          </li>
+        </ul>
+      </nav>
+
+      <main>
+        <Outlet />
+      </main>
+    </div>
   )
 }
-
-export default App
