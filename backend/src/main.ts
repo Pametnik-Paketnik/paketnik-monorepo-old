@@ -7,6 +7,9 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // global prefix for all routes
+  app.setGlobalPrefix('api');
+
   const config = new DocumentBuilder()
     .setTitle('Paketnik')
     .setDescription('Paketnik API description')
@@ -15,7 +18,7 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT');
