@@ -36,9 +36,27 @@
       "image_size": "224x224",
       "format": "jpg",
       "detection_method": "custom_skin_gui"
+    },
+    {
+      "session_id": "default_20250522_111150",
+      "session_label": "default",
+      "timestamp": "2025-05-22T11:11:50.672162",
+      "images_captured": 3,
+      "image_size": "224x224",
+      "format": "jpg",
+      "detection_method": "custom_skin_auto"
+    },
+    {
+      "session_id": "default_20250522_111305",
+      "session_label": "default",
+      "timestamp": "2025-05-22T11:13:05.389916",
+      "images_captured": 3,
+      "image_size": "224x224",
+      "format": "jpg",
+      "detection_method": "custom_skin_auto"
     }
   ],
-  "total_sessions": 4,
-  "total_images": 12,
-  "last_updated": "2025-05-22T11:00:18.544122"
+  "total_sessions": 6,
+  "total_images": 18,
+  "last_updated": "2025-05-22T11:13:05.389916"
 }
