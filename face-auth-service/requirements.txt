@@ -3,3 +3,9 @@ uvicorn
 opencv-python-headless
 numpy
 scikit-learn
+pillow
+python-multipart
+tensorflow
+pandas
+matplotlib
+seaborn
