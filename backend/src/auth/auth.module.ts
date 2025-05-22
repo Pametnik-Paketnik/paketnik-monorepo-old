@@ -6,6 +6,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { HttpModule } from '@nestjs/axios';
+import { Direct4meService } from './services/direct4me.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { UnlockHistory } from './entities/unlock-history.entity';
 
 @Module({
   imports: [
@@ -21,8 +25,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
       inject: [ConfigService],
     }),
+    HttpModule,
+    TypeOrmModule.forFeature([UnlockHistory]),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, Direct4meService],
   controllers: [AuthController],
 })
 export class AuthModule {}
