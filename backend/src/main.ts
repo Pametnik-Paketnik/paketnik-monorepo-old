@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -10,11 +11,14 @@ async function bootstrap() {
   // global prefix for all routes
   app.setGlobalPrefix('api');
 
+  // Enable validation
+  app.useGlobalPipes(new ValidationPipe());
+
   const config = new DocumentBuilder()
     .setTitle('Paketnik')
     .setDescription('Paketnik API description')
     .setVersion('1.0')
-    .addTag('paketnik')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
