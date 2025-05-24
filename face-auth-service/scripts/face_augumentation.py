@@ -105,58 +105,110 @@ class FaceAugmentation:
         return transformed
 
     def augment_lighting_variation(self, image, light_angle=45, intensity=0.3):
-        """
-        Custom lighting variation by simulating directional light source
-        WITHOUT using external libraries
-        """
+        """Custom lighting variation by simulating directional light source"""
         h, w = image.shape[:2]
-        
-        # Convert angle to radians
         angle_rad = math.radians(light_angle)
-        
-        # Light direction vector
         light_dx = math.cos(angle_rad)
         light_dy = math.sin(angle_rad)
-        
-        # Create lighting gradient
         center_x, center_y = w // 2, h // 2
-        
-        # Calculate lighting map
         lighting_map = np.zeros((h, w), dtype=np.float32)
         
         for y in range(h):
             for x in range(w):
-                # Distance from center
                 dx = (x - center_x) / (w // 2)
                 dy = (y - center_y) / (h // 2)
-                
-                # Calculate dot product with light direction
                 dot_product = dx * light_dx + dy * light_dy
-                
-                # Create smooth lighting gradient
                 light_factor = 1.0 + intensity * dot_product
-                
-                # Apply circular falloff
                 distance = math.sqrt(dx*dx + dy*dy)
                 falloff = max(0, 1.0 - distance * 0.5)
-                
                 lighting_map[y, x] = light_factor * falloff
         
-        # Apply lighting to image
         if len(image.shape) == 3:
-            # Color image
             result = np.zeros_like(image)
             for c in range(image.shape[2]):
                 channel = image[:, :, c].astype(np.float32)
                 lit_channel = channel * lighting_map
                 result[:, :, c] = np.clip(lit_channel, 0, 255).astype(np.uint8)
         else:
-            # Grayscale image
             channel = image.astype(np.float32)
             lit_channel = channel * lighting_map
             result = np.clip(lit_channel, 0, 255).astype(np.uint8)
-        
         return result
+
+    def augment_lens_distortion(self, image, distortion_strength=0.15, barrel=True):
+        """
+        Custom lens distortion effect (barrel or pincushion)
+        WITHOUT using external libraries
+        """
+        h, w = image.shape[:2]
+        
+        # Create output image
+        distorted = np.zeros_like(image)
+        
+        # Center coordinates
+        cx, cy = w // 2, h // 2
+        
+        # Maximum radius for normalization
+        max_radius = min(cx, cy)
+        
+        for y in range(h):
+            for x in range(w):
+                # Calculate distance from center
+                dx = x - cx
+                dy = y - cy
+                
+                # Normalize to radius
+                r = math.sqrt(dx*dx + dy*dy) / max_radius
+                
+                # Apply distortion formula
+                if barrel:
+                    # Barrel distortion
+                    distortion_factor = 1 + distortion_strength * r * r
+                else:
+                    # Pincushion distortion
+                    distortion_factor = 1 - distortion_strength * r * r
+                
+                # Calculate source coordinates
+                if distortion_factor > 0:
+                    src_x = cx + dx / distortion_factor
+                    src_y = cy + dy / distortion_factor
+                    
+                    # Check bounds and apply bilinear interpolation
+                    if 0 <= src_x < w-1 and 0 <= src_y < h-1:
+                        x1, y1 = int(src_x), int(src_y)
+                        x2, y2 = x1 + 1, y1 + 1
+                        
+                        if x2 < w and y2 < h:
+                            wx = src_x - x1
+                            wy = src_y - y1
+                            
+                            if len(image.shape) == 3:
+                                for c in range(image.shape[2]):
+                                    p11 = image[y1, x1, c]
+                                    p12 = image[y2, x1, c]
+                                    p21 = image[y1, x2, c]
+                                    p22 = image[y2, x2, c]
+                                    
+                                    interpolated = (p11 * (1-wx) * (1-wy) + 
+                                                  p21 * wx * (1-wy) + 
+                                                  p12 * (1-wx) * wy + 
+                                                  p22 * wx * wy)
+                                    
+                                    distorted[y, x, c] = int(interpolated)
+                            else:
+                                p11 = image[y1, x1]
+                                p12 = image[y2, x1]
+                                p21 = image[y1, x2]
+                                p22 = image[y2, x2]
+                                
+                                interpolated = (p11 * (1-wx) * (1-wy) + 
+                                              p21 * wx * (1-wy) + 
+                                              p12 * (1-wx) * wy + 
+                                              p22 * wx * wy)
+                                
+                                distorted[y, x] = int(interpolated)
+        
+        return distorted
     
     def process_person_augmentation(self, person_name, method="rotation", **kwargs):
         """Process all images for a person with specified augmentation"""
@@ -197,6 +249,12 @@ class FaceAugmentation:
                 intensity = kwargs.get('intensity', 0.3)
                 result = self.augment_lighting_variation(image, light_angle, intensity)
                 suffix = f"light{light_angle}_{int(intensity*100)}"
+            elif method == "distortion":
+                strength = kwargs.get('strength', 0.15)
+                barrel = kwargs.get('barrel', True)
+                result = self.augment_lens_distortion(image, strength, barrel)
+                distortion_type = "barrel" if barrel else "pinch"
+                suffix = f"dist_{distortion_type}_{int(strength*100)}"
             else:
                 print(f"Unknown method: {method}")
                 continue
@@ -210,16 +268,26 @@ class FaceAugmentation:
         return True
 
 def main():
-    parser = argparse.ArgumentParser(description="Face Augmentation - Rotation, Perspective & Lighting")
+    parser = argparse.ArgumentParser(description="Face Augmentation - All 4 Methods")
     parser.add_argument("--person", "-p", required=True, help="Person name")
-    parser.add_argument("--method", "-m", choices=['rotation', 'perspective', 'lighting'], 
+    parser.add_argument("--method", "-m", choices=['rotation', 'perspective', 'lighting', 'distortion'], 
                        default='rotation', help="Augmentation method")
+    
+    # Rotation parameters
     parser.add_argument("--angle", "-a", type=int, default=10, help="Rotation angle")
+    
+    # Perspective parameters
     parser.add_argument("--tilt-x", type=int, default=10, help="Perspective tilt X")
     parser.add_argument("--tilt-y", type=int, default=0, help="Perspective tilt Y")
     parser.add_argument("--tilt-z", type=int, default=0, help="Perspective tilt Z")
+    
+    # Lighting parameters
     parser.add_argument("--light-angle", type=int, default=45, help="Light direction angle")
     parser.add_argument("--intensity", type=float, default=0.3, help="Light intensity")
+    
+    # Distortion parameters
+    parser.add_argument("--strength", type=float, default=0.15, help="Distortion strength")
+    parser.add_argument("--barrel", action='store_true', help="Use barrel distortion (default: pincushion)")
     
     args = parser.parse_args()
     
@@ -233,6 +301,9 @@ def main():
     elif args.method == "lighting":
         success = augmentor.process_person_augmentation(args.person, "lighting", 
                                                        light_angle=args.light_angle, intensity=args.intensity)
+    elif args.method == "distortion":
+        success = augmentor.process_person_augmentation(args.person, "distortion", 
+                                                       strength=args.strength, barrel=args.barrel)
     
     if success:
         print(f"{args.method.capitalize()} augmentation completed!")
