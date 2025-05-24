@@ -1,0 +1,21 @@
+# Node & pnpm
+node_modules
+*.log
+
+# Build artefakti
+dist
+*.tsbuildinfo
+
+# Vse testne datoteke
+test/
+*.spec.ts
+
+# NestJS configi, ki niso potrebni v image
+eslint.config.mjs
+
+# Editor/OS zadeve
+.DS_Store
+.env
+.env.*
+.vscode/
+.idea/

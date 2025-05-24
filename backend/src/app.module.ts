@@ -12,7 +12,7 @@ import { AuthModule } from './auth/auth.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
+      envFilePath: `.env.${process.env.NODE_ENV || 'dev'}`,
       validationSchema: envValidationSchema,
       validationOptions: {
         abortEarly: true,
