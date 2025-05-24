@@ -1,24 +1,19 @@
 {
   "person_name": "jakob",
-  "processing_timestamp": "2025-05-24T14:45:59.476754",
+  "processing_timestamp": "2025-05-24T14:58:58.058060",
   "processing_config": {
     "face_detection_crop": true,
     "white_balance_correction": true,
-    "noise_removal": "gaussian",
+    "noise_removal": "bilateral",
     "color_space": "rgb",
     "skin_tone_normalization": true,
     "illumination_normalization": true,
     "use_clahe": true,
-    "clahe_clip_limit": 2.0,
-    "clahe_tile_size": [
-      6,
-      6
-    ],
     "grayscale_linearization": false,
-    "gamma_correction": 1.05,
+    "gamma_correction": 1.1,
     "contrast_enhancement": {
-      "alpha": 1.1,
-      "beta": 5
+      "alpha": 1.15,
+      "beta": 8
     }
   },
   "images_processed": 140,
