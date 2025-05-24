@@ -1,0 +1,15 @@
+{
+  "person_name": "jakob",
+  "augmentation_sessions": [
+    {
+      "timestamp": "2025-05-24T15:22:49.237444",
+      "method": "random",
+      "count_per_image": 2,
+      "images_augmented": 140,
+      "images_failed": 0,
+      "augmentation_version": "1.0"
+    }
+  ],
+  "total_augmentations": 140,
+  "last_updated": "2025-05-24T15:22:49.237444"
+}
