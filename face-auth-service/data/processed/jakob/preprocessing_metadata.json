@@ -1,0 +1,26 @@
+{
+  "person_name": "jakob",
+  "processing_timestamp": "2025-05-24T14:58:58.058060",
+  "processing_config": {
+    "face_detection_crop": true,
+    "white_balance_correction": true,
+    "noise_removal": "bilateral",
+    "color_space": "rgb",
+    "skin_tone_normalization": true,
+    "illumination_normalization": true,
+    "use_clahe": true,
+    "grayscale_linearization": false,
+    "gamma_correction": 1.1,
+    "contrast_enhancement": {
+      "alpha": 1.15,
+      "beta": 8
+    }
+  },
+  "images_processed": 140,
+  "images_failed": 0,
+  "target_size": [
+    224,
+    224
+  ],
+  "preprocessing_version": "1.0"
+}
