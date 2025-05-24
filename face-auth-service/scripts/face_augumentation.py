@@ -52,66 +52,31 @@ class FaceAugmentation:
         return rotated
 
     def augment_perspective_transform(self, image, tilt_x=0, tilt_y=0, tilt_z=0):
-        """
-        Custom perspective transformation to simulate 3D head rotation
-        WITHOUT using cv2.getPerspectiveTransform or cv2.warpPerspective
-        """
+        """Custom perspective transformation to simulate 3D head rotation"""
         h, w = image.shape[:2]
+        rx, ry, rz = math.radians(tilt_x), math.radians(tilt_y), math.radians(tilt_z)
         
-        # Convert angles to radians
-        rx = math.radians(tilt_x)
-        ry = math.radians(tilt_y)
-        rz = math.radians(tilt_z)
-        
-        # 3D rotation matrices
-        # Rotation around X-axis (pitch)
-        Rx = np.array([
-            [1, 0, 0],
-            [0, math.cos(rx), -math.sin(rx)],
-            [0, math.sin(rx), math.cos(rx)]
-        ])
-        
-        # Rotation around Y-axis (yaw)
-        Ry = np.array([
-            [math.cos(ry), 0, math.sin(ry)],
-            [0, 1, 0],
-            [-math.sin(ry), 0, math.cos(ry)]
-        ])
-        
-        # Rotation around Z-axis (roll)
-        Rz = np.array([
-            [math.cos(rz), -math.sin(rz), 0],
-            [math.sin(rz), math.cos(rz), 0],
-            [0, 0, 1]
-        ])
-        
-        # Combined rotation matrix
+        Rx = np.array([[1, 0, 0], [0, math.cos(rx), -math.sin(rx)], [0, math.sin(rx), math.cos(rx)]])
+        Ry = np.array([[math.cos(ry), 0, math.sin(ry)], [0, 1, 0], [-math.sin(ry), 0, math.cos(ry)]])
+        Rz = np.array([[math.cos(rz), -math.sin(rz), 0], [math.sin(rz), math.cos(rz), 0], [0, 0, 1]])
         R = Rz @ Ry @ Rx
         
-        # Camera parameters (simplified)
         focal_length = max(w, h)
         cx, cy = w // 2, h // 2
-        
-        # Create output image
         transformed = np.zeros_like(image)
         
         for y in range(h):
             for x in range(w):
-                # Convert to camera coordinates
                 X = (x - cx) / focal_length
                 Y = (y - cy) / focal_length
                 Z = 1.0
-                
-                # Apply 3D rotation
                 point_3d = np.array([X, Y, Z])
                 rotated_3d = R @ point_3d
                 
-                # Project back to 2D
-                if rotated_3d[2] > 0.1:  # Avoid division by zero
+                if rotated_3d[2] > 0.1:
                     new_x = rotated_3d[0] / rotated_3d[2] * focal_length + cx
                     new_y = rotated_3d[1] / rotated_3d[2] * focal_length + cy
                     
-                    # Check bounds and apply bilinear interpolation
                     if 0 <= new_x < w-1 and 0 <= new_y < h-1:
                         x1, y1 = int(new_x), int(new_y)
                         x2, y2 = x1 + 1, y1 + 1
@@ -126,27 +91,72 @@ class FaceAugmentation:
                                     p12 = image[y2, x1, c]
                                     p21 = image[y1, x2, c]
                                     p22 = image[y2, x2, c]
-                                    
-                                    interpolated = (p11 * (1-wx) * (1-wy) + 
-                                                  p21 * wx * (1-wy) + 
-                                                  p12 * (1-wx) * wy + 
-                                                  p22 * wx * wy)
-                                    
+                                    interpolated = (p11 * (1-wx) * (1-wy) + p21 * wx * (1-wy) + 
+                                                  p12 * (1-wx) * wy + p22 * wx * wy)
                                     transformed[y, x, c] = int(interpolated)
                             else:
                                 p11 = image[y1, x1]
                                 p12 = image[y2, x1]
                                 p21 = image[y1, x2]
                                 p22 = image[y2, x2]
-                                
-                                interpolated = (p11 * (1-wx) * (1-wy) + 
-                                              p21 * wx * (1-wy) + 
-                                              p12 * (1-wx) * wy + 
-                                              p22 * wx * wy)
-                                
+                                interpolated = (p11 * (1-wx) * (1-wy) + p21 * wx * (1-wy) + 
+                                              p12 * (1-wx) * wy + p22 * wx * wy)
                                 transformed[y, x] = int(interpolated)
-        
         return transformed
+
+    def augment_lighting_variation(self, image, light_angle=45, intensity=0.3):
+        """
+        Custom lighting variation by simulating directional light source
+        WITHOUT using external libraries
+        """
+        h, w = image.shape[:2]
+        
+        # Convert angle to radians
+        angle_rad = math.radians(light_angle)
+        
+        # Light direction vector
+        light_dx = math.cos(angle_rad)
+        light_dy = math.sin(angle_rad)
+        
+        # Create lighting gradient
+        center_x, center_y = w // 2, h // 2
+        
+        # Calculate lighting map
+        lighting_map = np.zeros((h, w), dtype=np.float32)
+        
+        for y in range(h):
+            for x in range(w):
+                # Distance from center
+                dx = (x - center_x) / (w // 2)
+                dy = (y - center_y) / (h // 2)
+                
+                # Calculate dot product with light direction
+                dot_product = dx * light_dx + dy * light_dy
+                
+                # Create smooth lighting gradient
+                light_factor = 1.0 + intensity * dot_product
+                
+                # Apply circular falloff
+                distance = math.sqrt(dx*dx + dy*dy)
+                falloff = max(0, 1.0 - distance * 0.5)
+                
+                lighting_map[y, x] = light_factor * falloff
+        
+        # Apply lighting to image
+        if len(image.shape) == 3:
+            # Color image
+            result = np.zeros_like(image)
+            for c in range(image.shape[2]):
+                channel = image[:, :, c].astype(np.float32)
+                lit_channel = channel * lighting_map
+                result[:, :, c] = np.clip(lit_channel, 0, 255).astype(np.uint8)
+        else:
+            # Grayscale image
+            channel = image.astype(np.float32)
+            lit_channel = channel * lighting_map
+            result = np.clip(lit_channel, 0, 255).astype(np.uint8)
+        
+        return result
     
     def process_person_augmentation(self, person_name, method="rotation", **kwargs):
         """Process all images for a person with specified augmentation"""
@@ -182,6 +192,11 @@ class FaceAugmentation:
                 tilt_z = kwargs.get('tilt_z', 0)
                 result = self.augment_perspective_transform(image, tilt_x, tilt_y, tilt_z)
                 suffix = f"persp{tilt_x}_{tilt_y}_{tilt_z}"
+            elif method == "lighting":
+                light_angle = kwargs.get('light_angle', 45)
+                intensity = kwargs.get('intensity', 0.3)
+                result = self.augment_lighting_variation(image, light_angle, intensity)
+                suffix = f"light{light_angle}_{int(intensity*100)}"
             else:
                 print(f"Unknown method: {method}")
                 continue
@@ -195,14 +210,16 @@ class FaceAugmentation:
         return True
 
 def main():
-    parser = argparse.ArgumentParser(description="Face Augmentation - Rotation & Perspective")
+    parser = argparse.ArgumentParser(description="Face Augmentation - Rotation, Perspective & Lighting")
     parser.add_argument("--person", "-p", required=True, help="Person name")
-    parser.add_argument("--method", "-m", choices=['rotation', 'perspective'], 
+    parser.add_argument("--method", "-m", choices=['rotation', 'perspective', 'lighting'], 
                        default='rotation', help="Augmentation method")
     parser.add_argument("--angle", "-a", type=int, default=10, help="Rotation angle")
     parser.add_argument("--tilt-x", type=int, default=10, help="Perspective tilt X")
     parser.add_argument("--tilt-y", type=int, default=0, help="Perspective tilt Y")
     parser.add_argument("--tilt-z", type=int, default=0, help="Perspective tilt Z")
+    parser.add_argument("--light-angle", type=int, default=45, help="Light direction angle")
+    parser.add_argument("--intensity", type=float, default=0.3, help="Light intensity")
     
     args = parser.parse_args()
     
@@ -213,6 +230,9 @@ def main():
     elif args.method == "perspective":
         success = augmentor.process_person_augmentation(args.person, "perspective", 
                                                        tilt_x=args.tilt_x, tilt_y=args.tilt_y, tilt_z=args.tilt_z)
+    elif args.method == "lighting":
+        success = augmentor.process_person_augmentation(args.person, "lighting", 
+                                                       light_angle=args.light_angle, intensity=args.intensity)
     
     if success:
         print(f"{args.method.capitalize()} augmentation completed!")
