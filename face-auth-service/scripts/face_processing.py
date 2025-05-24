@@ -177,6 +177,80 @@ class FacePreprocessor:
         result = (linearized * 255).astype(np.uint8)
         
         return result
+    def white_balance_correction(self, image):
+        """Apply automatic white balance correction"""
+        if len(image.shape) != 3:
+            return image
+        
+        # Calculate mean values for each channel
+        mean_b = np.mean(image[:, :, 0])
+        mean_g = np.mean(image[:, :, 1])
+        mean_r = np.mean(image[:, :, 2])
+        
+        # Calculate gray world assumption
+        gray_world = (mean_b + mean_g + mean_r) / 3
+        
+        # Calculate scaling factors
+        scale_b = gray_world / mean_b if mean_b > 0 else 1.0
+        scale_g = gray_world / mean_g if mean_g > 0 else 1.0
+        scale_r = gray_world / mean_r if mean_r > 0 else 1.0
+        
+        # Apply scaling with clipping
+        result = image.copy().astype(np.float32)
+        result[:, :, 0] = np.clip(result[:, :, 0] * scale_b, 0, 255)
+        result[:, :, 1] = np.clip(result[:, :, 1] * scale_g, 0, 255)
+        result[:, :, 2] = np.clip(result[:, :, 2] * scale_r, 0, 255)
+        
+        return result.astype(np.uint8)
+    
+    def face_detection_crop(self, image):
+        """Detect face and crop to face region with padding"""
+        # Load OpenCV's face detector
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        
+        if len(image.shape) == 3:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = image
+        
+        # Detect faces
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4, minSize=(50, 50))
+        
+        if len(faces) > 0:
+            # Take the largest face
+            largest_face = max(faces, key=lambda face: face[2] * face[3])
+            x, y, w, h = largest_face
+            
+            # Add padding
+            padding = 30
+            x1 = max(0, x - padding)
+            y1 = max(0, y - padding)
+            x2 = min(image.shape[1], x + w + padding)
+            y2 = min(image.shape[0], y + h + padding)
+            
+            # Crop the face region
+            if len(image.shape) == 3:
+                return image[y1:y2, x1:x2]
+            else:
+                return image[y1:y2, x1:x2]
+        
+        # If no face detected, return original image
+        return image
+    
+    def skin_tone_normalization(self, image):
+        """Normalize skin tones using color correction"""
+        if len(image.shape) != 3:
+            return image
+        
+        # Convert to YUV color space for skin tone adjustment
+        yuv = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+        
+        # Apply slight adjustments to U and V channels to normalize skin tones
+        yuv[:, :, 1] = cv2.multiply(yuv[:, :, 1], 0.95)  # Reduce U slightly
+        yuv[:, :, 2] = cv2.multiply(yuv[:, :, 2], 0.98)  # Reduce V slightly
+        
+        # Convert back to BGR
+        return cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR)
 
 def main():
     parser = argparse.ArgumentParser(description="Face Image Preprocessing")
