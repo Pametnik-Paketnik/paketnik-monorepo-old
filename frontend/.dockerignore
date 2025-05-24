@@ -1,0 +1,22 @@
+# 🔧 Build output (če imaš build step)
+dist
+
+# 📦 Local dependencies
+node_modules
+
+# 🧪 Testing (če uporabljaš test frameworke)
+coverage
+*.test.tsx
+*.spec.tsx
+
+# 🔐 Environment files
+.env
+.env.*
+
+# 🧹 Editor in OS junk
+.vscode
+.idea
+.DS_Store
+
+# 🛠 Logs
+*.log
