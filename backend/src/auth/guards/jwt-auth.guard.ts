@@ -1,5 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { TokenBlacklistService } from '../services/token-blacklist.service';
+
 
 @Injectable()
-export class JwtAuthGuard extends AuthGuard('jwt') {}
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  constructor(private readonly tokenBlacklistService: TokenBlacklistService) {
+    super();
+  }
+
+  handleRequest(err: any, user: any, info: any, context: any) {
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+
+    // Check if token is blacklisted
+    if (token && this.tokenBlacklistService.isTokenBlacklisted(token)) {
+      throw new UnauthorizedException('Token has been invalidated');
+    }
+
+    if (err || !user) {
+      throw err || new UnauthorizedException();
+    }
+    return user;
+  }
+}

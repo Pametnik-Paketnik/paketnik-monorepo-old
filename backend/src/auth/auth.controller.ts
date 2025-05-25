@@ -12,6 +12,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { LogoutResponseDto } from './dto/logout-response.dto';
 import {
   ApiOperation,
   ApiResponse,
@@ -71,6 +72,32 @@ export class AuthController {
   })
   async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
     return this.authService.login(loginDto);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout and invalidate token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Logout successful',
+    type: LogoutResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - invalid token',
+  })
+  async logout(@Req() req: RequestWithUser): Promise<LogoutResponseDto> {
+    // Extract token from Authorization header
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1]; // Remove 'Bearer ' prefix
+  
+    if (!token) {
+      throw new UnauthorizedException('No token provided');
+    }
+  
+    return this.authService.logout(token);
   }
 
   @Post('box/open')
