@@ -5,13 +5,13 @@ import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtAuthGuard } from './guards/jwt-auth.guard'; // Add this import
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { Direct4meService } from './services/direct4me.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UnlockHistory } from './entities/unlock-history.entity';
 import { TokenBlacklistService } from './services/token-blacklist.service';
-
 
 @Module({
   imports: [
@@ -30,7 +30,14 @@ import { TokenBlacklistService } from './services/token-blacklist.service';
     HttpModule,
     TypeOrmModule.forFeature([UnlockHistory]),
   ],
-  providers: [AuthService, JwtStrategy, Direct4meService, TokenBlacklistService],
+  providers: [
+    AuthService, 
+    JwtStrategy, 
+    Direct4meService, 
+    TokenBlacklistService,
+    JwtAuthGuard,
+  ],
   controllers: [AuthController],
+  exports: [JwtAuthGuard],
 })
 export class AuthModule {}
