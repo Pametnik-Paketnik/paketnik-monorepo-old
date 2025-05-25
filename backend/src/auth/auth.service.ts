@@ -10,6 +10,8 @@ import { LoginResponseDto } from './dto/login-response.dto';
 import { compare } from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { TokenBlacklistService } from './services/token-blacklist.service';
+
 
 @Injectable()
 export class AuthService {
@@ -17,6 +19,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly tokenBlacklistService: TokenBlacklistService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
@@ -73,7 +76,26 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
   }
-
+  async logout(token: string): Promise<{ success: boolean; message: string }> {
+      try {
+        // Verify token is valid before blacklisting
+        const payload = await this.jwtService.verifyAsync(token);
+    
+        // Add token to blacklist
+        this.tokenBlacklistService.addToken(token);
+    
+        return {
+          success: true,
+          message: 'Logout successful',
+        };
+      } catch (error) {
+        // Even if token is invalid, consider logout successful
+        return {
+          success: true,
+          message: 'Logout successful',
+     };
+    }
+  }
   validate(payload: { sub: number; username: string }) {
     return { userId: payload.sub, username: payload.username };
   }

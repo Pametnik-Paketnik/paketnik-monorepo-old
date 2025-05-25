@@ -10,6 +10,8 @@ import { HttpModule } from '@nestjs/axios';
 import { Direct4meService } from './services/direct4me.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UnlockHistory } from './entities/unlock-history.entity';
+import { TokenBlacklistService } from './services/token-blacklist.service';
+
 
 @Module({
   imports: [
@@ -28,7 +30,7 @@ import { UnlockHistory } from './entities/unlock-history.entity';
     HttpModule,
     TypeOrmModule.forFeature([UnlockHistory]),
   ],
-  providers: [AuthService, JwtStrategy, Direct4meService],
+  providers: [AuthService, JwtStrategy, Direct4meService, TokenBlacklistService],
   controllers: [AuthController],
 })
 export class AuthModule {}
