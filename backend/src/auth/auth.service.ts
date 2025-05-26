@@ -12,7 +12,6 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { TokenBlacklistService } from './services/token-blacklist.service';
 
-
 @Injectable()
 export class AuthService {
   constructor(
@@ -77,23 +76,23 @@ export class AuthService {
     }
   }
   async logout(token: string): Promise<{ success: boolean; message: string }> {
-      try {
-        // Verify token is valid before blacklisting
-        const payload = await this.jwtService.verifyAsync(token);
-    
-        // Add token to blacklist
-        this.tokenBlacklistService.addToken(token);
-    
-        return {
-          success: true,
-          message: 'Logout successful',
-        };
-      } catch (error) {
-        // Even if token is invalid, consider logout successful
-        return {
-          success: true,
-          message: 'Logout successful',
-     };
+    try {
+      // Verify token is valid before blacklisting
+      const payload = await this.jwtService.verifyAsync(token);
+
+      // Add token to blacklist
+      this.tokenBlacklistService.addToken(token);
+
+      return {
+        success: true,
+        message: 'Logout successful',
+      };
+    } catch (error) {
+      // Even if token is invalid, consider logout successful
+      return {
+        success: true,
+        message: 'Logout successful',
+      };
     }
   }
   validate(payload: { sub: number; username: string }) {

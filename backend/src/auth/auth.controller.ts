@@ -92,11 +92,11 @@ export class AuthController {
     // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1]; // Remove 'Bearer ' prefix
-  
+
     if (!token) {
       throw new UnauthorizedException('No token provided');
     }
-  
+
     return this.authService.logout(token);
   }
 

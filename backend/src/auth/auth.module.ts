@@ -31,9 +31,9 @@ import { TokenBlacklistService } from './services/token-blacklist.service';
     TypeOrmModule.forFeature([UnlockHistory]),
   ],
   providers: [
-    AuthService, 
-    JwtStrategy, 
-    Direct4meService, 
+    AuthService,
+    JwtStrategy,
+    Direct4meService,
     TokenBlacklistService,
     JwtAuthGuard,
   ],
