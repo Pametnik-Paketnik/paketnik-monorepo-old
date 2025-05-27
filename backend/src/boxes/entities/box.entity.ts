@@ -7,6 +7,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Reservation } from 'src/reservations/entities/reservation.entity';
 
 @Entity('boxes')
 export class Box {
@@ -18,5 +19,5 @@ export class Box {
   owner: User;
   @Column({ type: 'enum', enum: ['FREE', 'BUSY'], default: 'FREE' })
   status: 'FREE' | 'BUSY';
-  //@OneToMany(() => Reservation, (r) => r.box) reservations: Reservation[];
+  @OneToMany(() => Reservation, (r) => r.box) reservations: Reservation[];
 }
