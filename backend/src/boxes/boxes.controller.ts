@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   UseGuards,
+  Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { BoxesService } from './boxes.service';
 import { CreateBoxDto } from './dto/create-box.dto';
@@ -19,13 +21,22 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Box } from './entities/box.entity';
+import { OpenBoxDto } from './dto/open-box.dto';
+import { UsersService } from '../users/users.service';
+
+interface RequestWithUser extends Request {
+  user?: { userId: number };
+}
 
 @ApiTags('boxes')
 @ApiBearerAuth('access-token')
 @Controller('boxes')
 @UseGuards(JwtAuthGuard)
 export class BoxesController {
-  constructor(private readonly boxesService: BoxesService) {}
+  constructor(
+    private readonly boxesService: BoxesService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new box' })
@@ -91,5 +102,20 @@ export class BoxesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   remove(@Param('id') id: string) {
     return this.boxesService.remove(+id);
+  }
+
+  @Post('open')
+  @ApiOperation({ summary: 'Open a box' })
+  @ApiResponse({ status: 200, description: 'Box successfully opened.' })
+  @ApiResponse({ status: 400, description: 'Invalid request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 500, description: 'Internal server error.' })
+  async openBox(
+    @Body() openBoxDto: OpenBoxDto,
+    @Req() req: RequestWithUser,
+  ): Promise<any> {
+    if (!req.user?.userId) throw new UnauthorizedException();
+    const user = await this.usersService.findOne(req.user.userId);
+    return this.boxesService.openBox(openBoxDto, user);
   }
 }

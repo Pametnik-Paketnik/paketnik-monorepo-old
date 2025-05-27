@@ -20,9 +20,6 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { Direct4meService } from './services/direct4me.service';
-import { OpenBoxDto } from './dto/open-box.dto';
-import { UsersService } from '../users/users.service';
 import { Request } from 'express';
 
 interface RequestWithUser extends Request {
@@ -32,11 +29,7 @@ interface RequestWithUser extends Request {
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly direct4meService: Direct4meService,
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -98,22 +91,5 @@ export class AuthController {
     }
 
     return this.authService.logout(token);
-  }
-
-  @Post('box/open')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Open a box using Direct4me API' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns the token data for opening the box',
-  })
-  async openBox(
-    @Body() openBoxDto: OpenBoxDto,
-    @Req() req: RequestWithUser,
-  ): Promise<any> {
-    if (!req.user?.userId) throw new UnauthorizedException();
-    const user = await this.usersService.findOne(req.user.userId);
-    return this.direct4meService.openBox(openBoxDto, user);
   }
 }
