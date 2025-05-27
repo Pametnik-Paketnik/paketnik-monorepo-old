@@ -1,0 +1,22 @@
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+
+@Entity('boxes')
+export class Box {
+  @PrimaryGeneratedColumn() id: number;
+  @Column({ name: 'box_id', unique: true }) boxId: string;
+  @Column() location: string;
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'owner_id' })
+  owner: User;
+  @Column({ type: 'enum', enum: ['FREE', 'BUSY'], default: 'FREE' })
+  status: 'FREE' | 'BUSY';
+  //@OneToMany(() => Reservation, (r) => r.box) reservations: Reservation[];
+}
