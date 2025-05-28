@@ -79,8 +79,8 @@ export class BoxesController {
     return this.boxesService.findByHostId(+hostId);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a box by id' })
+  @Get(':boxId')
+  @ApiOperation({ summary: 'Get a box by boxId' })
   @ApiResponse({
     status: 200,
     description: 'Return the box.',
@@ -88,12 +88,12 @@ export class BoxesController {
   })
   @ApiResponse({ status: 404, description: 'Box not found.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  findOne(@Param('id') id: string) {
-    return this.boxesService.findOne(+id);
+  findOne(@Param('boxId') boxId: string) {
+    return this.boxesService.findOneByBoxId(boxId);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a box' })
+  @Patch(':boxId')
+  @ApiOperation({ summary: 'Update a box by boxId' })
   @ApiResponse({
     status: 200,
     description: 'The box has been successfully updated.',
@@ -103,20 +103,20 @@ export class BoxesController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 409, description: 'Box with this ID already exists.' })
-  update(@Param('id') id: string, @Body() updateBoxDto: UpdateBoxDto) {
-    return this.boxesService.update(+id, updateBoxDto);
+  update(@Param('boxId') boxId: string, @Body() updateBoxDto: UpdateBoxDto) {
+    return this.boxesService.updateByBoxId(boxId, updateBoxDto);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a box' })
+  @Delete(':boxId')
+  @ApiOperation({ summary: 'Delete a box by boxId' })
   @ApiResponse({
     status: 200,
     description: 'The box has been successfully deleted.',
   })
   @ApiResponse({ status: 404, description: 'Box not found.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  remove(@Param('id') id: string) {
-    return this.boxesService.remove(+id);
+  remove(@Param('boxId') boxId: string) {
+    return this.boxesService.removeByBoxId(boxId);
   }
 
   @Post('open')

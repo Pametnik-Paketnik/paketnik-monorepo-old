@@ -97,6 +97,19 @@ export class BoxesService {
     return box;
   }
 
+  async findOneByBoxId(boxId: string): Promise<Box> {
+    const box = await this.boxesRepository.findOne({
+      where: { boxId },
+      relations: ['owner'],
+    });
+
+    if (!box) {
+      throw new NotFoundException(`Box with ID ${boxId} not found`);
+    }
+
+    return box;
+  }
+
   async update(id: number, updateBoxDto: UpdateBoxDto): Promise<Box> {
     const box = await this.findOne(id);
 
@@ -118,8 +131,34 @@ export class BoxesService {
     return this.boxesRepository.save(box);
   }
 
+  async updateByBoxId(boxId: string, updateBoxDto: UpdateBoxDto): Promise<Box> {
+    const box = await this.findOneByBoxId(boxId);
+
+    // If boxId is being updated, check for uniqueness
+    if (updateBoxDto.boxId && updateBoxDto.boxId !== box.boxId) {
+      const existingBox = await this.boxesRepository.findOne({
+        where: { boxId: updateBoxDto.boxId },
+      });
+
+      if (existingBox) {
+        throw new ConflictException(
+          `Box with ID ${updateBoxDto.boxId} already exists`,
+        );
+      }
+    }
+
+    // Update the box with new values
+    Object.assign(box, updateBoxDto);
+    return this.boxesRepository.save(box);
+  }
+
   async remove(id: number): Promise<void> {
     const box = await this.findOne(id);
+    await this.boxesRepository.remove(box);
+  }
+
+  async removeByBoxId(boxId: string): Promise<void> {
+    const box = await this.findOneByBoxId(boxId);
     await this.boxesRepository.remove(box);
   }
 
