@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 
 export enum UserType {
   USER = 'USER',
@@ -20,6 +21,7 @@ export class User {
   username: string;
 
   @Column({ name: 'hashed_password' })
+  @Exclude()
   hashedPassword: string;
 
   @Column({

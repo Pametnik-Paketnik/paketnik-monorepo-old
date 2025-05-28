@@ -60,7 +60,21 @@ export class BoxesService {
       );
     }
 
-    const box = this.boxesRepository.create(createBoxDto);
+    // Verify that the owner exists and is a HOST
+    const owner = await this.boxesRepository.manager.findOne(User, {
+      where: { id: createBoxDto.ownerId, userType: UserType.HOST },
+    });
+
+    if (!owner) {
+      throw new NotFoundException(
+        `Host with ID ${createBoxDto.ownerId} not found`,
+      );
+    }
+
+    const box = this.boxesRepository.create({
+      ...createBoxDto,
+      owner: owner,
+    });
     return this.boxesRepository.save(box);
   }
 

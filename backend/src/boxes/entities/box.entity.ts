@@ -8,10 +8,14 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Reservation } from '../../reservations/entities/reservation.entity';
+import { Exclude } from 'class-transformer';
 
 @Entity('boxes')
 export class Box {
-  @PrimaryGeneratedColumn() id: number;
+  @PrimaryGeneratedColumn() 
+  @Exclude()
+  id: number;
+  
   @Column({ name: 'box_id', unique: true }) boxId: string;
   @Column() location: string;
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

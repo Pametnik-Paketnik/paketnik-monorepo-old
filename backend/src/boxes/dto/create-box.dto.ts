@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsOptional, IsNumber, IsPositive } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateBoxDto {
@@ -17,6 +17,15 @@ export class CreateBoxDto {
   @IsString()
   @IsNotEmpty()
   location: string;
+
+  @ApiProperty({
+    description: 'The ID of the host who owns this box',
+    example: 123,
+  })
+  @IsNumber()
+  @IsPositive()
+  @IsNotEmpty()
+  ownerId: number;
 
   @ApiProperty({
     description: 'The status of the box',
