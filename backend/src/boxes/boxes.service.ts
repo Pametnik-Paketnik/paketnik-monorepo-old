@@ -18,6 +18,7 @@ import { AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { UnlockHistory } from './entities/unlock-history.entity';
 import { User } from '../users/entities/user.entity';
+import { UserType } from '../users/entities/user.entity';
 
 export interface OpenBoxResponse {
   data: string;
@@ -175,5 +176,21 @@ export class BoxesService {
         tokenFormat: usedTokenFormat,
       });
     }
+  }
+
+  async findByHostId(hostId: number): Promise<Box[]> {
+    // First, verify that the user exists and is a HOST
+    const host = await this.boxesRepository.manager.findOne(User, {
+      where: { id: hostId, userType: UserType.HOST },
+    });
+
+    if (!host) {
+      throw new NotFoundException(`Host with ID ${hostId} not found`);
+    }
+
+    return this.boxesRepository.find({
+      where: { owner: { id: hostId } },
+      relations: ['owner'],
+    });
   }
 }

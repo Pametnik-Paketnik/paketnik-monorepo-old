@@ -64,6 +64,19 @@ export class BoxesController {
     return this.boxesService.findAll();
   }
 
+  @Get('host/:hostId')
+  @ApiOperation({ summary: 'Get all boxes belonging to a specific host' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all boxes belonging to the specified host.',
+    type: [Box],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Host not found or no boxes found.' })
+  findByHostId(@Param('hostId') hostId: string) {
+    return this.boxesService.findByHostId(+hostId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a box by id' })
   @ApiResponse({
