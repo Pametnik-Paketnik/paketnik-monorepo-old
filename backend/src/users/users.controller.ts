@@ -93,6 +93,7 @@ export class UsersController {
     const responseDto = new UserResponseDto();
     responseDto.id = user.id;
     responseDto.username = user.username;
+    responseDto.userType = user.userType;
     responseDto.createdAt = user.createdAt;
     responseDto.updatedAt = user.updatedAt;
     return responseDto;

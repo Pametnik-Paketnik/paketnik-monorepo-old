@@ -39,6 +39,7 @@ export class UsersService {
     const user = this.usersRepository.create({
       username: createUserDto.username,
       hashedPassword,
+      userType: createUserDto.userType,
     });
 
     return this.usersRepository.save(user);
@@ -80,6 +81,10 @@ export class UsersService {
 
     if (updateUserDto.password) {
       user.hashedPassword = await this.hashPassword(updateUserDto.password);
+    }
+
+    if (updateUserDto.userType) {
+      user.userType = updateUserDto.userType;
     }
 
     return this.usersRepository.save(user);

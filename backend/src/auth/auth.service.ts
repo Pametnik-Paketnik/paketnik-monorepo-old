@@ -22,15 +22,11 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
-    // Check if passwords match
-    if (registerDto.password !== registerDto.confirmPassword) {
-      throw new BadRequestException('Passwords do not match');
-    }
-
     // Create user using the UsersService
     const user = await this.usersService.create({
       username: registerDto.username,
       password: registerDto.password,
+      userType: registerDto.userType,
     });
 
     // Generate JWT token
@@ -41,6 +37,11 @@ export class AuthService {
       success: true,
       message: 'Registration successful',
       access_token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        userType: user.userType,
+      },
     };
   }
 
@@ -67,6 +68,11 @@ export class AuthService {
         success: true,
         message: 'Login successful',
         access_token: token,
+        user: {
+          id: user.id,
+          username: user.username,
+          userType: user.userType,
+        },
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {

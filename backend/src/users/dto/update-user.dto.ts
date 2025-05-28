@@ -1,5 +1,6 @@
-import { IsString, MinLength, IsOptional } from 'class-validator';
+import { IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { UserType } from '../entities/user.entity';
 
 export class UpdateUserDto {
   @ApiProperty({
@@ -23,4 +24,14 @@ export class UpdateUserDto {
   @IsString()
   @MinLength(8)
   password?: string;
+
+  @ApiProperty({
+    description: 'The type of user (USER or HOST)',
+    example: 'HOST',
+    enum: UserType,
+    required: false,
+  })
+  @IsEnum(UserType)
+  @IsOptional()
+  userType?: UserType;
 }
