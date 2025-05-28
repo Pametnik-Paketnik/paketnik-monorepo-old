@@ -246,4 +246,27 @@ export class BoxesService {
       relations: ['owner'],
     });
   }
+
+  async getOpeningHistory(): Promise<UnlockHistory[]> {
+    return this.unlockHistoryRepo.find({
+      relations: ['user'],
+      order: { timestamp: 'DESC' },
+    });
+  }
+
+  async getOpeningHistoryByBoxId(boxId: string): Promise<UnlockHistory[]> {
+    return this.unlockHistoryRepo.find({
+      where: { boxId },
+      relations: ['user'],
+      order: { timestamp: 'DESC' },
+    });
+  }
+
+  async getOpeningHistoryByUserId(userId: number): Promise<UnlockHistory[]> {
+    return this.unlockHistoryRepo.find({
+      where: { user: { id: userId } },
+      relations: ['user'],
+      order: { timestamp: 'DESC' },
+    });
+  }
 }

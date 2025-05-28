@@ -25,6 +25,7 @@ import {
 import { Box } from './entities/box.entity';
 import { OpenBoxDto } from './dto/open-box.dto';
 import { UsersService } from '../users/users.service';
+import { UnlockHistory } from './entities/unlock-history.entity';
 
 interface RequestWithUser extends Request {
   user?: { userId: number };
@@ -79,6 +80,58 @@ export class BoxesController {
     return this.boxesService.findByHostId(+hostId);
   }
 
+  @Get('opening-history')
+  @ApiOperation({ summary: 'Get all box opening history' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all opening history.',
+    type: [UnlockHistory],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async getAllOpeningHistory() {
+    return this.boxesService.getOpeningHistory();
+  }
+
+  @Get('opening-history/box/:boxId')
+  @ApiOperation({ summary: 'Get opening history for a specific box' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return opening history for the specified box.',
+    type: [UnlockHistory],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async getOpeningHistoryByBoxId(@Param('boxId') boxId: string) {
+    return this.boxesService.getOpeningHistoryByBoxId(boxId);
+  }
+
+  @Get('opening-history/user/:userId')
+  @ApiOperation({ summary: 'Get opening history for a specific user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return opening history for the specified user.',
+    type: [UnlockHistory],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async getOpeningHistoryByUserId(@Param('userId') userId: string) {
+    return this.boxesService.getOpeningHistoryByUserId(+userId);
+  }
+
+  @Post('open')
+  @ApiOperation({ summary: 'Open a box' })
+  @ApiResponse({ status: 200, description: 'Box successfully opened.' })
+  @ApiResponse({ status: 400, description: 'Invalid request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 500, description: 'Internal server error.' })
+  async openBox(
+    @Body() openBoxDto: OpenBoxDto,
+    @Req() req: RequestWithUser,
+  ): Promise<any> {
+    if (!req.user?.userId) throw new UnauthorizedException();
+    const user = await this.usersService.findOne(req.user.userId);
+    return this.boxesService.openBox(openBoxDto, user);
+  }
+
   @Get(':boxId')
   @ApiOperation({ summary: 'Get a box by boxId' })
   @ApiResponse({
@@ -117,20 +170,5 @@ export class BoxesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   remove(@Param('boxId') boxId: string) {
     return this.boxesService.removeByBoxId(boxId);
-  }
-
-  @Post('open')
-  @ApiOperation({ summary: 'Open a box' })
-  @ApiResponse({ status: 200, description: 'Box successfully opened.' })
-  @ApiResponse({ status: 400, description: 'Invalid request.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 500, description: 'Internal server error.' })
-  async openBox(
-    @Body() openBoxDto: OpenBoxDto,
-    @Req() req: RequestWithUser,
-  ): Promise<any> {
-    if (!req.user?.userId) throw new UnauthorizedException();
-    const user = await this.usersService.findOne(req.user.userId);
-    return this.boxesService.openBox(openBoxDto, user);
   }
 }
