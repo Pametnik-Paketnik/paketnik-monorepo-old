@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
@@ -55,6 +56,32 @@ export class ReservationsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   findAll() {
     return this.reservationsService.findAll();
+  }
+
+  @Get('guest/:guestId')
+  @ApiOperation({ summary: 'Get all reservations for a specific guest (USER type)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all reservations for the specified guest.',
+    type: [Reservation],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Guest not found or not a USER type.' })
+  findByGuest(@Param('guestId') guestId: string) {
+    return this.reservationsService.findByGuest(+guestId);
+  }
+
+  @Get('host/:hostId')
+  @ApiOperation({ summary: 'Get all reservations for a specific host (HOST type)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all reservations for the specified host.',
+    type: [Reservation],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Host not found or not a HOST type.' })
+  findByHost(@Param('hostId') hostId: string) {
+    return this.reservationsService.findByHost(+hostId);
   }
 
   @Get(':id')

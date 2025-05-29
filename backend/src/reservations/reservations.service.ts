@@ -138,6 +138,46 @@ export class ReservationsService {
     });
   }
 
+  async findByGuest(guestId: number): Promise<Reservation[]> {
+    // First validate that the user exists and is of USER type
+    const guest = await this.usersRepository.findOne({
+      where: { id: guestId },
+    });
+    if (!guest) {
+      throw new NotFoundException(`Guest with ID ${guestId} not found`);
+    }
+    if (guest.userType !== UserType.USER) {
+      throw new BadRequestException(
+        `User with ID ${guestId} is not a guest user (USER type)`,
+      );
+    }
+
+    return this.reservationsRepository.find({
+      where: { guest: { id: guestId } },
+      relations: ['guest', 'host', 'box'],
+    });
+  }
+
+  async findByHost(hostId: number): Promise<Reservation[]> {
+    // First validate that the user exists and is of HOST type
+    const host = await this.usersRepository.findOne({
+      where: { id: hostId },
+    });
+    if (!host) {
+      throw new NotFoundException(`Host with ID ${hostId} not found`);
+    }
+    if (host.userType !== UserType.HOST) {
+      throw new BadRequestException(
+        `User with ID ${hostId} is not a host user (HOST type)`,
+      );
+    }
+
+    return this.reservationsRepository.find({
+      where: { host: { id: hostId } },
+      relations: ['guest', 'host', 'box'],
+    });
+  }
+
   async findOne(id: number): Promise<Reservation> {
     const reservation = await this.reservationsRepository.findOne({
       where: { id },
