@@ -15,6 +15,8 @@ import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { CheckinReservationDto } from './dto/checkin-reservation.dto';
 import { CheckoutReservationDto } from './dto/checkout-reservation.dto';
+import { CheckinResponseDto } from './dto/checkin-response.dto';
+import { CheckoutResponseDto } from './dto/checkout-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   ApiTags,
@@ -141,21 +143,7 @@ export class ReservationsController {
   @ApiResponse({
     status: 200,
     description: 'Successfully checked in to the reservation and opened the box.',
-    schema: {
-      type: 'object',
-      properties: {
-        reservation: { $ref: '#/components/schemas/Reservation' },
-        openBoxResponse: {
-          type: 'object',
-          properties: {
-            data: { type: 'string', description: 'Direct4me token' },
-            result: { type: 'number', description: 'Result code' },
-            errorNumber: { type: 'number', description: 'Error number' },
-            tokenFormat: { type: 'number', description: 'Token format used (default: 5)' },
-          },
-        },
-      },
-    },
+    type: CheckinResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Bad request - invalid reservation status, time window, or user validation.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
@@ -169,21 +157,7 @@ export class ReservationsController {
   @ApiResponse({
     status: 200,
     description: 'Successfully checked out of the reservation and opened the box.',
-    schema: {
-      type: 'object',
-      properties: {
-        reservation: { $ref: '#/components/schemas/Reservation' },
-        openBoxResponse: {
-          type: 'object',
-          properties: {
-            data: { type: 'string', description: 'Direct4me token' },
-            result: { type: 'number', description: 'Result code' },
-            errorNumber: { type: 'number', description: 'Error number' },
-            tokenFormat: { type: 'number', description: 'Token format used (fixed: 5)' },
-          },
-        },
-      },
-    },
+    type: CheckoutResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Bad request - invalid reservation status, time window, or user validation.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })

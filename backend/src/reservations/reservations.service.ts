@@ -6,10 +6,13 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { CheckinReservationDto } from './dto/checkin-reservation.dto';
 import { CheckoutReservationDto } from './dto/checkout-reservation.dto';
+import { CheckinResponseDto } from './dto/checkin-response.dto';
+import { CheckoutResponseDto } from './dto/checkout-response.dto';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { Box } from '../boxes/entities/box.entity';
 import { User, UserType } from '../users/entities/user.entity';
@@ -25,6 +28,7 @@ export class ReservationsService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private boxesService: BoxesService,
+    private configService: ConfigService,
   ) {}
 
   async create(
@@ -320,7 +324,7 @@ export class ReservationsService {
     await this.reservationsRepository.remove(reservation);
   }
 
-  async checkin(checkinDto: CheckinReservationDto, jwtUser: { userId: number; username: string }): Promise<{ reservation: Reservation; openBoxResponse: any }> {
+  async checkin(checkinDto: CheckinReservationDto, jwtUser: { userId: number; username: string }): Promise<CheckinResponseDto> {
     // First, get the full user entity from the database
     const user = await this.usersRepository.findOne({
       where: { id: jwtUser.userId },
@@ -372,7 +376,7 @@ export class ReservationsService {
       const openBoxResponse = await this.boxesService.openBox(
         {
           boxId: parseInt(reservation.box.boxId), // Convert string boxId to number for Direct4me API
-          tokenFormat: checkinDto.tokenFormat ?? 5, // Default to 5 if not provided
+          tokenFormat: this.configService.get<number>('DIRECT4ME_TOKEN_FORMAT') ?? 5, // Use DIRECT4ME_TOKEN_FORMAT from environment variables
         },
         user,
       );
@@ -385,13 +389,20 @@ export class ReservationsService {
       reservation.box.status = 'BUSY';
       await this.boxesRepository.save(reservation.box);
 
-      return { reservation, openBoxResponse };
+      return {
+        success: true,
+        message: `Successfully checked in to box ${reservation.box.boxId}`,
+        reservationId: reservation.id,
+        boxId: reservation.box.boxId,
+        status: reservation.status,
+        data: openBoxResponse.data,
+      };
     } catch (error) {
       throw new BadRequestException(`Failed to check in: ${error.message}`);
     }
   }
 
-  async checkout(checkoutDto: CheckoutReservationDto, jwtUser: { userId: number; username: string }): Promise<{ reservation: Reservation; openBoxResponse: any }> {
+  async checkout(checkoutDto: CheckoutReservationDto, jwtUser: { userId: number; username: string }): Promise<CheckoutResponseDto> {
     // First, get the full user entity from the database
     const user = await this.usersRepository.findOne({
       where: { id: jwtUser.userId },
@@ -443,7 +454,7 @@ export class ReservationsService {
       const openBoxResponse = await this.boxesService.openBox(
         {
           boxId: parseInt(reservation.box.boxId), // Convert string boxId to number for Direct4me API
-          tokenFormat: 5, // Fixed tokenFormat for checkout
+          tokenFormat: this.configService.get<number>('DIRECT4ME_TOKEN_FORMAT') ?? 5, // Use DIRECT4ME_TOKEN_FORMAT from environment variables
         },
         user,
       );
@@ -456,7 +467,13 @@ export class ReservationsService {
       reservation.box.status = 'FREE';
       await this.boxesRepository.save(reservation.box);
 
-      return { reservation, openBoxResponse };
+      return {
+        success: true,
+        message: `Successfully checked out from box ${reservation.box.boxId}`,
+        reservationId: reservation.id,
+        boxId: reservation.box.boxId,
+        status: reservation.status,
+      };
     } catch (error) {
       throw new BadRequestException(`Failed to check out: ${error.message}`);
     }
