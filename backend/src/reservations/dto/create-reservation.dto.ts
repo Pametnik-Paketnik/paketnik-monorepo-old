@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsInt, IsNotEmpty } from 'class-validator';
+import { IsDateString, IsEnum, IsInt, IsNotEmpty, IsString } from 'class-validator';
 import { ReservationStatus } from '../entities/reservation.entity';
 
 export class CreateReservationDto {
@@ -13,10 +13,10 @@ export class CreateReservationDto {
   @IsNotEmpty()
   hostId: number;
 
-  @ApiProperty({ description: 'ID of the box being reserved', example: 1 })
-  @IsInt()
+  @ApiProperty({ description: 'BoxID of the box being reserved (string identifier)', example: 'BOX123' })
+  @IsString()
   @IsNotEmpty()
-  boxId: number;
+  boxId: string;
 
   @ApiProperty({
     description: 'Check-in date and time in ISO 8601 format',

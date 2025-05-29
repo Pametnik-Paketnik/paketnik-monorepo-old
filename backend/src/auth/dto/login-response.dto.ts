@@ -25,8 +25,8 @@ export class LoginResponseDto {
     example: {
       id: 1,
       username: 'john_doe',
-      userType: 'USER'
-    }
+      userType: 'USER',
+    },
   })
   user: {
     id: number;

@@ -75,7 +75,10 @@ export class BoxesController {
     type: [Box],
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 404, description: 'Host not found or no boxes found.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Host not found or no boxes found.',
+  })
   findByHostId(@Param('hostId') hostId: string) {
     return this.boxesService.findByHostId(+hostId);
   }

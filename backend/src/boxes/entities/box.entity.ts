@@ -12,10 +12,10 @@ import { Exclude } from 'class-transformer';
 
 @Entity('boxes')
 export class Box {
-  @PrimaryGeneratedColumn() 
+  @PrimaryGeneratedColumn()
   @Exclude()
   id: number;
-  
+
   @Column({ name: 'box_id', unique: true }) boxId: string;
   @Column() location: string;
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

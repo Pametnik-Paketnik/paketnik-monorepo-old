@@ -10,7 +10,7 @@ import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { Reservation } from './entities/reservation.entity';
 import { Box } from '../boxes/entities/box.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserType } from '../users/entities/user.entity';
 
 @Injectable()
 export class ReservationsService {
@@ -45,11 +45,11 @@ export class ReservationsService {
 
       // Check if box exists
       const box = await this.boxesRepository.findOne({
-        where: { id: createReservationDto.boxId },
+        where: { boxId: createReservationDto.boxId },
       });
       if (!box) {
         throw new NotFoundException(
-          `Box with ID ${createReservationDto.boxId} not found`,
+          `Box with BoxID ${createReservationDto.boxId} not found`,
         );
       }
 
@@ -62,6 +62,11 @@ export class ReservationsService {
           `Guest with ID ${createReservationDto.guestId} not found`,
         );
       }
+      if (guest.userType !== UserType.USER) {
+        throw new BadRequestException(
+          `User with ID ${createReservationDto.guestId} is not a guest user (USER type)`,
+        );
+      }
 
       // Check if host exists
       const host = await this.usersRepository.findOne({
@@ -72,12 +77,17 @@ export class ReservationsService {
           `Host with ID ${createReservationDto.hostId} not found`,
         );
       }
+      if (host.userType !== UserType.HOST) {
+        throw new BadRequestException(
+          `User with ID ${createReservationDto.hostId} is not a host user (HOST type)`,
+        );
+      }
 
       // Check for overlapping reservations
       const overlappingReservation = await this.reservationsRepository
         .createQueryBuilder('reservation')
         .where('reservation.box_id = :boxId', {
-          boxId: createReservationDto.boxId,
+          boxId: box.id,
         })
         .andWhere('reservation.status != :cancelled', {
           cancelled: 'CANCELLED',
@@ -202,11 +212,11 @@ export class ReservationsService {
     // Update related entities if IDs are provided
     if (updateReservationDto.boxId) {
       const box = await this.boxesRepository.findOne({
-        where: { id: updateReservationDto.boxId },
+        where: { boxId: updateReservationDto.boxId },
       });
       if (!box) {
         throw new NotFoundException(
-          `Box with ID ${updateReservationDto.boxId} not found`,
+          `Box with BoxID ${updateReservationDto.boxId} not found`,
         );
       }
       reservation.box = box;
@@ -221,6 +231,11 @@ export class ReservationsService {
           `Guest with ID ${updateReservationDto.guestId} not found`,
         );
       }
+      if (guest.userType !== UserType.USER) {
+        throw new BadRequestException(
+          `User with ID ${updateReservationDto.guestId} is not a guest user (USER type)`,
+        );
+      }
       reservation.guest = guest;
     }
 
@@ -231,6 +246,11 @@ export class ReservationsService {
       if (!host) {
         throw new NotFoundException(
           `Host with ID ${updateReservationDto.hostId} not found`,
+        );
+      }
+      if (host.userType !== UserType.HOST) {
+        throw new BadRequestException(
+          `User with ID ${updateReservationDto.hostId} is not a host user (HOST type)`,
         );
       }
       reservation.host = host;
