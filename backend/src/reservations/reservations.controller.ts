@@ -8,10 +8,13 @@ import {
   Delete,
   UseGuards,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
+import { CheckinReservationDto } from './dto/checkin-reservation.dto';
+import { CheckoutReservationDto } from './dto/checkout-reservation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   ApiTags,
@@ -131,5 +134,61 @@ export class ReservationsController {
   @ApiResponse({ status: 404, description: 'Reservation not found.' })
   remove(@Param('id') id: string) {
     return this.reservationsService.remove(+id);
+  }
+
+  @Post('checkin')
+  @ApiOperation({ summary: 'Check in to a reservation' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully checked in to the reservation and opened the box.',
+    schema: {
+      type: 'object',
+      properties: {
+        reservation: { $ref: '#/components/schemas/Reservation' },
+        openBoxResponse: {
+          type: 'object',
+          properties: {
+            data: { type: 'string', description: 'Direct4me token' },
+            result: { type: 'number', description: 'Result code' },
+            errorNumber: { type: 'number', description: 'Error number' },
+            tokenFormat: { type: 'number', description: 'Token format used (default: 5)' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid reservation status, time window, or user validation.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Reservation not found.' })
+  checkin(@Body() checkinDto: CheckinReservationDto, @Req() req: any) {
+    return this.reservationsService.checkin(checkinDto, req.user);
+  }
+
+  @Post('checkout')
+  @ApiOperation({ summary: 'Check out of a reservation' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully checked out of the reservation and opened the box.',
+    schema: {
+      type: 'object',
+      properties: {
+        reservation: { $ref: '#/components/schemas/Reservation' },
+        openBoxResponse: {
+          type: 'object',
+          properties: {
+            data: { type: 'string', description: 'Direct4me token' },
+            result: { type: 'number', description: 'Result code' },
+            errorNumber: { type: 'number', description: 'Error number' },
+            tokenFormat: { type: 'number', description: 'Token format used (fixed: 5)' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid reservation status, time window, or user validation.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Reservation not found.' })
+  checkout(@Body() checkoutDto: CheckoutReservationDto, @Req() req: any) {
+    return this.reservationsService.checkout(checkoutDto, req.user);
   }
 }

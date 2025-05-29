@@ -8,9 +8,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
-import { Reservation } from './entities/reservation.entity';
+import { CheckinReservationDto } from './dto/checkin-reservation.dto';
+import { CheckoutReservationDto } from './dto/checkout-reservation.dto';
+import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { Box } from '../boxes/entities/box.entity';
 import { User, UserType } from '../users/entities/user.entity';
+import { BoxesService } from '../boxes/boxes.service';
 
 @Injectable()
 export class ReservationsService {
@@ -21,6 +24,7 @@ export class ReservationsService {
     private boxesRepository: Repository<Box>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private boxesService: BoxesService,
   ) {}
 
   async create(
@@ -314,5 +318,147 @@ export class ReservationsService {
   async remove(id: number): Promise<void> {
     const reservation = await this.findOne(id);
     await this.reservationsRepository.remove(reservation);
+  }
+
+  async checkin(checkinDto: CheckinReservationDto, jwtUser: { userId: number; username: string }): Promise<{ reservation: Reservation; openBoxResponse: any }> {
+    // First, get the full user entity from the database
+    const user = await this.usersRepository.findOne({
+      where: { id: jwtUser.userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${jwtUser.userId} not found`);
+    }
+
+    // Find the reservation with relations
+    const reservation = await this.reservationsRepository.findOne({
+      where: { id: checkinDto.reservationId },
+      relations: ['guest', 'host', 'box'],
+    });
+
+    if (!reservation) {
+      throw new NotFoundException(`Reservation with ID ${checkinDto.reservationId} not found`);
+    }
+
+    // Validate that the user is the guest of this reservation
+    if (reservation.guest.id !== user.id) {
+      throw new BadRequestException('You can only check in to your own reservations');
+    }
+
+    // Validate that the guest is of USER type
+    if (user.userType !== UserType.USER) {
+      throw new BadRequestException('Only guest users (USER type) can check in');
+    }
+
+    // Validate reservation status
+    if (reservation.status !== ReservationStatus.PENDING) {
+      throw new BadRequestException(`Cannot check in to reservation with status: ${reservation.status}`);
+    }
+
+    // Validate time window (check-in allowed from start of checkinAt date to checkoutAt)
+    const now = new Date();
+    const checkinDate = new Date(reservation.checkinAt);
+    const checkinStart = new Date(checkinDate.getFullYear(), checkinDate.getMonth(), checkinDate.getDate(), 0, 0, 0); // Start of day
+    const checkinEnd = new Date(reservation.checkoutAt);
+
+    if (now < checkinStart || now > checkinEnd) {
+      throw new BadRequestException(
+        `Check-in is only allowed between ${checkinStart.toISOString()} and ${checkinEnd.toISOString()}`
+      );
+    }
+
+    try {
+      // Open the box using BoxesService
+      const openBoxResponse = await this.boxesService.openBox(
+        {
+          boxId: parseInt(reservation.box.boxId), // Convert string boxId to number for Direct4me API
+          tokenFormat: checkinDto.tokenFormat ?? 5, // Default to 5 if not provided
+        },
+        user,
+      );
+
+      // Update reservation status to CHECKED_IN
+      reservation.status = ReservationStatus.CHECKED_IN;
+      await this.reservationsRepository.save(reservation);
+
+      // Update box status to BUSY
+      reservation.box.status = 'BUSY';
+      await this.boxesRepository.save(reservation.box);
+
+      return { reservation, openBoxResponse };
+    } catch (error) {
+      throw new BadRequestException(`Failed to check in: ${error.message}`);
+    }
+  }
+
+  async checkout(checkoutDto: CheckoutReservationDto, jwtUser: { userId: number; username: string }): Promise<{ reservation: Reservation; openBoxResponse: any }> {
+    // First, get the full user entity from the database
+    const user = await this.usersRepository.findOne({
+      where: { id: jwtUser.userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${jwtUser.userId} not found`);
+    }
+
+    // Find the reservation with relations
+    const reservation = await this.reservationsRepository.findOne({
+      where: { id: checkoutDto.reservationId },
+      relations: ['guest', 'host', 'box'],
+    });
+
+    if (!reservation) {
+      throw new NotFoundException(`Reservation with ID ${checkoutDto.reservationId} not found`);
+    }
+
+    // Validate that the user is the guest of this reservation
+    if (reservation.guest.id !== user.id) {
+      throw new BadRequestException('You can only check out of your own reservations');
+    }
+
+    // Validate that the guest is of USER type
+    if (user.userType !== UserType.USER) {
+      throw new BadRequestException('Only guest users (USER type) can check out');
+    }
+
+    // Validate reservation status
+    if (reservation.status !== ReservationStatus.CHECKED_IN) {
+      throw new BadRequestException(`Cannot check out of reservation with status: ${reservation.status}`);
+    }
+
+    // Validate time window (check-out allowed from checkinAt to end of checkoutAt date)
+    const now = new Date();
+    const checkoutStart = new Date(reservation.checkinAt);
+    const checkoutDate = new Date(reservation.checkoutAt);
+    const checkoutEnd = new Date(checkoutDate.getFullYear(), checkoutDate.getMonth(), checkoutDate.getDate(), 23, 59, 59); // End of day
+
+    if (now < checkoutStart || now > checkoutEnd) {
+      throw new BadRequestException(
+        `Check-out is only allowed between ${checkoutStart.toISOString()} and ${checkoutEnd.toISOString()}`
+      );
+    }
+
+    try {
+      // Open the box using BoxesService
+      const openBoxResponse = await this.boxesService.openBox(
+        {
+          boxId: parseInt(reservation.box.boxId), // Convert string boxId to number for Direct4me API
+          tokenFormat: 5, // Fixed tokenFormat for checkout
+        },
+        user,
+      );
+
+      // Update reservation status to CHECKED_OUT
+      reservation.status = ReservationStatus.CHECKED_OUT;
+      await this.reservationsRepository.save(reservation);
+
+      // Update box status to FREE
+      reservation.box.status = 'FREE';
+      await this.boxesRepository.save(reservation.box);
+
+      return { reservation, openBoxResponse };
+    } catch (error) {
+      throw new BadRequestException(`Failed to check out: ${error.message}`);
+    }
   }
 }
