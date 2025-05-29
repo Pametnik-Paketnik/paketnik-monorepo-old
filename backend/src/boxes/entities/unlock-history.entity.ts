@@ -7,10 +7,12 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Exclude } from 'class-transformer';
 
 @Entity('unlock_history')
 export class UnlockHistory {
   @PrimaryGeneratedColumn()
+  @Exclude()
   id: number;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })

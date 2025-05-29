@@ -7,6 +7,8 @@ import { UsersModule } from './users/users.module';
 import { envValidationSchema } from './config/env.validation';
 import { getDatabaseConfig } from './config/database.config';
 import { AuthModule } from './auth/auth.module';
+import { BoxesModule } from './boxes/boxes.module';
+import { ReservationsModule } from './reservations/reservations.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { AuthModule } from './auth/auth.module';
     }),
     UsersModule,
     AuthModule,
+    BoxesModule,
+    ReservationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
