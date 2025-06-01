@@ -15,6 +15,14 @@ async function bootstrap() {
     logger: ['error', 'warn', 'debug', 'log', 'verbose'],
   });
 
+  // Enable CORS
+  app.enableCors({
+    origin: ['http://localhost:5173'], // Allow requests from Vite dev server
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  });
+
   // global prefix for all routes
   app.setGlobalPrefix('api');
 
