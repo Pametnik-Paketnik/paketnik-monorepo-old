@@ -28,13 +28,13 @@ import {
 
 const data = {
   user: {
-    name: "shadcn",
+    name: "username",
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
   navMain: [
     {
-      title: "Playground",
+      title: "Domov",
       url: "#",
       icon: SquareTerminal,
       isActive: true,
@@ -54,7 +54,7 @@ const data = {
       ],
     },
     {
-      title: "Models",
+      title: "Rezervacije",
       url: "#",
       icon: Bot,
       items: [
@@ -73,7 +73,7 @@ const data = {
       ],
     },
     {
-      title: "Documentation",
+      title: "Paketniki",
       url: "#",
       icon: BookOpen,
       items: [
@@ -96,7 +96,7 @@ const data = {
       ],
     },
     {
-      title: "Settings",
+      title: "Zgodovina odpiranj",
       url: "#",
       icon: Settings2,
       items: [
@@ -162,8 +162,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <Command className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Acme Inc</span>
-                  <span className="truncate text-xs">Enterprise</span>
+                  <span className="truncate font-medium">Pametni paketnik</span>
+                  <span className="truncate text-xs">Opis</span>
                 </div>
               </a>
             </SidebarMenuButton>
