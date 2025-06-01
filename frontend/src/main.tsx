@@ -5,6 +5,8 @@ import './index.css'
 import App from './App'
 import Home from './routes/Home'
 import About from './routes/About'
+import Login from './routes/Login'
+import Register from './routes/Register'
 
 const router = createBrowserRouter([
   {
@@ -18,6 +20,14 @@ const router = createBrowserRouter([
       {
         path: 'about',
         element: <About />,
+      },
+      {
+        path: 'login',
+        element: <Login />,
+      },
+      {
+        path: 'register',
+        element: <Register />,
       },
     ],
   },
