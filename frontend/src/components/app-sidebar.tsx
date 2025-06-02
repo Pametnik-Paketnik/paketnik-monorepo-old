@@ -11,6 +11,8 @@ import {
   Settings2,
   SquareTerminal,
 } from "lucide-react"
+import { useSelector } from "react-redux"
+import type { RootState } from "@/store"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
@@ -151,6 +153,14 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const user = useSelector((state: RootState) => state.auth.user)
+
+  const userData = {
+    name: user?.username || "Guest",
+    email: user?.userType || "Not logged in",
+    avatar: "/avatars/shadcn.jpg",
+  }
+
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
@@ -176,7 +186,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
   )
