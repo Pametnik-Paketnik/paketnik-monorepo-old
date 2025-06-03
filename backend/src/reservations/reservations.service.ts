@@ -122,6 +122,7 @@ export class ReservationsService {
         box,
         guest,
         host,
+        status: ReservationStatus.PENDING,
       });
 
       return await this.reservationsRepository.save(reservation);
