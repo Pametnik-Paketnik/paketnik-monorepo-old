@@ -6,6 +6,8 @@ import HomePage from './routes/Home.tsx'
 import LoginPage from './routes/Login.tsx'
 import SettingsPage from './routes/About.tsx'
 import RegisterPage from './routes/Register.tsx'
+import BoxesPage from './routes/Boxes'
+import ReservationsPage from './routes/Reservations'
 
 export default function App() {
   return (
@@ -18,6 +20,8 @@ export default function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="boxes" element={<BoxesPage />} />
+        <Route path="reservations" element={<ReservationsPage />} />
       </Route>
     </Routes>
   )
