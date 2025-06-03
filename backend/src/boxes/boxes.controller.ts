@@ -20,12 +20,12 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { Box } from './entities/box.entity';
 import { OpenBoxDto } from './dto/open-box.dto';
 import { UsersService } from '../users/users.service';
 import { UnlockHistory } from './entities/unlock-history.entity';
+import { BoxAvailabilityDto } from './dto/box-availability.dto';
 
 interface RequestWithUser extends Request {
   user?: { userId: number };
@@ -173,5 +173,22 @@ export class BoxesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   remove(@Param('boxId') boxId: string) {
     return this.boxesService.removeByBoxId(boxId);
+  }
+
+  @Get(':boxId/availability')
+  @ApiOperation({ summary: 'Get box availability schedule' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the box availability schedule',
+  })
+  @ApiResponse({ status: 404, description: 'Box not found.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async getBoxAvailability(
+    @Param('boxId') boxId: string,
+    @Query() query: BoxAvailabilityDto,
+  ) {
+    const startDate = query.startDate ? new Date(query.startDate) : undefined;
+    const endDate = query.endDate ? new Date(query.endDate) : undefined;
+    return this.boxesService.getBoxAvailability(boxId, startDate, endDate);
   }
 }

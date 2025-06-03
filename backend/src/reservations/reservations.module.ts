@@ -8,10 +8,7 @@ import { User } from '../users/entities/user.entity';
 import { BoxesModule } from '../boxes/boxes.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Reservation, Box, User]),
-    BoxesModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Reservation, Box, User]), BoxesModule],
   controllers: [ReservationsController],
   providers: [ReservationsService],
   exports: [ReservationsService],

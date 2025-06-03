@@ -269,4 +269,32 @@ export class BoxesService {
       order: { timestamp: 'DESC' },
     });
   }
+
+  async getBoxAvailability(boxId: string, startDate?: Date, endDate?: Date) {
+    const box = await this.findOneByBoxId(boxId);
+    if (!box) {
+      throw new NotFoundException(`Box with ID ${boxId} not found`);
+    }
+
+    const query = this.boxesRepository
+      .createQueryBuilder('box')
+      .leftJoinAndSelect('box.reservations', 'reservation')
+      .where('box.boxId = :boxId', { boxId })
+      .andWhere('reservation.status != :cancelled', { cancelled: 'CANCELLED' });
+
+    if (startDate) {
+      query.andWhere('reservation.checkoutAt >= :startDate', { startDate });
+    }
+    if (endDate) {
+      query.andWhere('reservation.checkinAt <= :endDate', { endDate });
+    }
+
+    const boxWithReservations = await query.getOne();
+
+    return {
+      boxId: box.boxId,
+      location: box.location,
+      reservations: boxWithReservations?.reservations || [],
+    };
+  }
 }
