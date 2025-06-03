@@ -1,5 +1,7 @@
 "use client"
 
+import { useDispatch } from "react-redux"
+import { useNavigate } from "react-router-dom"
 import {
   BadgeCheck,
   Bell,
@@ -9,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react"
 
+import { logout } from "@/store/authSlice"
 import {
   Avatar,
   AvatarFallback,
@@ -40,6 +43,13 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    dispatch(logout())
+    navigate('/login')
+  }
 
   return (
     <SidebarMenu>
@@ -102,7 +112,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>
