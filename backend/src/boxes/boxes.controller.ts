@@ -179,16 +179,12 @@ export class BoxesController {
   @ApiOperation({ summary: 'Get box availability schedule' })
   @ApiResponse({
     status: 200,
-    description: 'Returns the box availability schedule',
+    description:
+      'Returns the box availability schedule showing future unavailable dates',
   })
   @ApiResponse({ status: 404, description: 'Box not found.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  async getBoxAvailability(
-    @Param('boxId') boxId: string,
-    @Query() query: BoxAvailabilityDto,
-  ) {
-    const startDate = query.startDate ? new Date(query.startDate) : undefined;
-    const endDate = query.endDate ? new Date(query.endDate) : undefined;
-    return this.boxesService.getBoxAvailability(boxId, startDate, endDate);
+  async getBoxAvailability(@Param('boxId') boxId: string) {
+    return this.boxesService.getBoxAvailability(boxId);
   }
 }

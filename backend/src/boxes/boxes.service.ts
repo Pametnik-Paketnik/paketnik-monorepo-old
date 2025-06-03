@@ -270,31 +270,36 @@ export class BoxesService {
     });
   }
 
-  async getBoxAvailability(boxId: string, startDate?: Date, endDate?: Date) {
+  async getBoxAvailability(boxId: string) {
     const box = await this.findOneByBoxId(boxId);
     if (!box) {
       throw new NotFoundException(`Box with ID ${boxId} not found`);
     }
 
+    const now = new Date();
+
     const query = this.boxesRepository
       .createQueryBuilder('box')
       .leftJoinAndSelect('box.reservations', 'reservation')
       .where('box.boxId = :boxId', { boxId })
-      .andWhere('reservation.status != :cancelled', { cancelled: 'CANCELLED' });
-
-    if (startDate) {
-      query.andWhere('reservation.checkoutAt >= :startDate', { startDate });
-    }
-    if (endDate) {
-      query.andWhere('reservation.checkinAt <= :endDate', { endDate });
-    }
+      .andWhere('reservation.status != :cancelled', { cancelled: 'CANCELLED' })
+      .andWhere('reservation.checkoutAt > :now', { now }); // Only future reservations
 
     const boxWithReservations = await query.getOne();
+
+    // Transform reservations into unavailable dates
+    const unavailableDates = (boxWithReservations?.reservations || []).map(
+      (reservation) => ({
+        startDate: reservation.checkinAt,
+        endDate: reservation.checkoutAt,
+        status: reservation.status,
+      }),
+    );
 
     return {
       boxId: box.boxId,
       location: box.location,
-      reservations: boxWithReservations?.reservations || [],
+      unavailableDates,
     };
   }
 }
