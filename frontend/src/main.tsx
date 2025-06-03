@@ -9,6 +9,8 @@ import Home from './routes/Home'
 import About from './routes/About'
 import Login from './routes/Login'
 import Register from './routes/Register'
+import Boxes from './routes/Boxes'
+import Reservations from './routes/Reservations'
 import { ProtectedRoute } from '@/components/protected-route'
 
 const router = createBrowserRouter([
@@ -29,6 +31,22 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <About />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'boxes',
+        element: (
+          <ProtectedRoute>
+            <Boxes />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'reservations',
+        element: (
+          <ProtectedRoute>
+            <Reservations />
           </ProtectedRoute>
         ),
       },
