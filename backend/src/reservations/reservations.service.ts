@@ -31,6 +31,28 @@ export class ReservationsService {
     private configService: ConfigService,
   ) {}
 
+  private calculateTotalPrice(
+    box: Box,
+    checkinAt: Date,
+    checkoutAt: Date,
+  ): number {
+    // Calculate the difference in days, considering only the date part (not time)
+    const checkinDate = new Date(
+      checkinAt.getFullYear(),
+      checkinAt.getMonth(),
+      checkinAt.getDate(),
+    );
+    const checkoutDate = new Date(
+      checkoutAt.getFullYear(),
+      checkoutAt.getMonth(),
+      checkoutAt.getDate(),
+    );
+    const nights = Math.floor(
+      (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    return box.pricePerNight * nights;
+  }
+
   async create(
     createReservationDto: CreateReservationDto,
   ): Promise<Reservation> {
@@ -60,6 +82,14 @@ export class ReservationsService {
           `Box with BoxID ${createReservationDto.boxId} not found`,
         );
       }
+
+      if (!box.pricePerNight) {
+        throw new BadRequestException(
+          'Box does not have a price per night set',
+        );
+      }
+
+      const totalPrice = this.calculateTotalPrice(box, checkinAt, checkoutAt);
 
       // Check if guest exists
       const guest = await this.usersRepository.findOne({
@@ -123,6 +153,7 @@ export class ReservationsService {
         guest,
         host,
         status: ReservationStatus.PENDING,
+        totalPrice,
       });
 
       return await this.reservationsRepository.save(reservation);
@@ -136,7 +167,7 @@ export class ReservationsService {
         throw error;
       }
       throw new BadRequestException(
-        `Failed to create reservation: ${error.message}`,
+        `Failed to create reservation: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
