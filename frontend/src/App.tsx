@@ -8,6 +8,7 @@ import SettingsPage from './routes/About.tsx'
 import RegisterPage from './routes/Register.tsx'
 import BoxesPage from './routes/Boxes'
 import ReservationsPage from './routes/Reservations'
+import BoxOpeningHistoryPage from '@/routes/BoxOpeningHistory'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="boxes" element={<BoxesPage />} />
         <Route path="reservations" element={<ReservationsPage />} />
+        <Route path="box-opening-history" element={<BoxOpeningHistoryPage />} />
       </Route>
     </Routes>
   )
