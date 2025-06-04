@@ -245,12 +245,10 @@ export class StorageService {
         Key: key,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
       const signedUrl = await getSignedUrl(this.s3Client, getObjectCommand, {
         expiresIn,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return signedUrl;
     } catch (error: unknown) {
       const errorMessage =
