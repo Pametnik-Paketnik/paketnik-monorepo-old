@@ -23,8 +23,6 @@ export const envValidationSchema = Joi.object({
   // MinIO Storage
   MINIO_ENDPOINT: Joi.string().required(),
   MINIO_PORT: Joi.number().default(9000),
-  MINIO_PUBLIC_ENDPOINT: Joi.string().default('localhost'),
-  MINIO_PUBLIC_PORT: Joi.number().optional(),
   MINIO_ACCESS_KEY: Joi.string().required(),
   MINIO_SECRET_KEY: Joi.string().required(),
   MINIO_USE_SSL: Joi.boolean().default(false),
