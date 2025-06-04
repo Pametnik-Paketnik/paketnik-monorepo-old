@@ -19,4 +19,12 @@ export const envValidationSchema = Joi.object({
   DIRECT4ME_TOKEN: Joi.string().required(),
   DIRECT4ME_BASEURL: Joi.string().required(),
   DIRECT4ME_TOKEN_FORMAT: Joi.number().integer().min(0).max(6).required(),
+
+  // MinIO Storage
+  MINIO_ENDPOINT: Joi.string().required(),
+  MINIO_PORT: Joi.number().default(9000),
+  MINIO_PUBLIC_ENDPOINT: Joi.string().required(),
+  MINIO_ACCESS_KEY: Joi.string().required(),
+  MINIO_SECRET_KEY: Joi.string().required(),
+  MINIO_USE_SSL: Joi.boolean().default(false),
 });

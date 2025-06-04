@@ -9,6 +9,7 @@ import { getDatabaseConfig } from './config/database.config';
 import { AuthModule } from './auth/auth.module';
 import { BoxesModule } from './boxes/boxes.module';
 import { ReservationsModule } from './reservations/reservations.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ReservationsModule } from './reservations/reservations.module';
         getDatabaseConfig(configService),
       inject: [ConfigService],
     }),
+    StorageModule,
     UsersModule,
     AuthModule,
     BoxesModule,

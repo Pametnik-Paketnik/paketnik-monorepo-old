@@ -2,48 +2,35 @@ services:
   backend:
     depends_on:
       - db
+      - minio
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     # HOT RELOADING - ENABLE BY UNCOMMENTING:
-    # volumes:
-    #   - ./backend:/app         # Mount local source code for live reload
-    #   - /app/node_modules      # Keep container's node_modules
+    volumes:
+      - ./backend:/app         # Mount local source code for live reload
+      - /app/node_modules      # Keep container's node_modules
     env_file:
       - ./backend/.env.dev
     command: pnpm start:dev
 
-  frontend:
-    depends_on:
-      - backend
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-    ports:
-      - "5173:5173"
-    # HOT RELOADING - ENABLE BY UNCOMMENTING:
-    # volumes:
-    #   - ./frontend:/app # Mount local source code for live reload
-    #   - /app/node_modules # Keep container's node_modules
-    env_file:
-      - ./frontend/.env.dev
-    command: pnpm dev --host
-
-  face-auth:
-    depends_on:
-      - db
-    build:
-      context: ./face-auth-service
-      dockerfile: Dockerfile.dev
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./face-auth-service:/app
-    env_file:
-      - ./face-auth-service/.env.dev
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload 
+  # frontend:
+  #   depends_on:
+  #     - backend
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile.dev
+  #   ports:
+  #     - "5173:5173"
+  #   # HOT RELOADING - ENABLE BY UNCOMMENTING:
+  #   # volumes:
+  #   #   - ./frontend:/app # Mount local source code for live reload
+  #   #   - /app/node_modules # Keep container's node_modules
+  #   env_file:
+  #     - ./frontend/.env.dev
+  #   command: pnpm dev --host
 
   db:
     image: postgres:15
@@ -70,6 +57,20 @@ services:
     depends_on:
       - db
 
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO Console (UI)
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+
 volumes:
   pgdata:
   pgadmin-data:
+  minio-data: 

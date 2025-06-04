@@ -1,12 +1,6 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsEnum,
-  IsOptional,
-  IsNumber,
-  IsPositive,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class CreateBoxDto {
   @ApiProperty({
@@ -29,22 +23,18 @@ export class CreateBoxDto {
     description: 'The ID of the host who owns this box',
     example: 123,
   })
+  @Transform(({ value }) => Number(value))
   @IsNumber()
-  @IsPositive()
   @IsNotEmpty()
   ownerId: number;
 
   @ApiProperty({
-    description: 'The status of the box',
-    enum: ['FREE', 'BUSY'],
-    default: 'FREE',
-    example: 'FREE',
+    description: 'Price per night for the box',
+    example: 25.99,
+    required: true,
   })
-  @IsEnum(['FREE', 'BUSY'])
-  @IsOptional()
-  status?: 'FREE' | 'BUSY';
-
+  @Transform(({ value }) => Number(value))
   @IsNumber()
-  @IsOptional()
-  pricePerNight?: number;
+  @IsNotEmpty()
+  pricePerNight: number;
 }

@@ -17,11 +17,12 @@ import { OpenBoxDto } from './dto/open-box.dto';
 import { AxiosResponse } from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { UnlockHistory } from './entities/unlock-history.entity';
-import { User } from '../users/entities/user.entity';
-import { UserType } from '../users/entities/user.entity';
+import { User, UserType } from '../users/entities/user.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { Not, Between } from 'typeorm';
 import { ReservationStatus } from '../reservations/entities/reservation.entity';
+import { BoxImagesService } from './services/box-images.service';
+import { MulterFile } from '../common/interfaces/multer.interface';
 
 export interface OpenBoxResponse {
   data: string;
@@ -46,6 +47,7 @@ export class BoxesService {
     private readonly configService: ConfigService,
     @InjectRepository(Reservation)
     private readonly reservationsRepository: Repository<Reservation>,
+    private readonly boxImagesService: BoxImagesService,
   ) {
     const config = getDirect4meConfig(this.configService);
     this.apiKey = config.apiKey ?? '';
@@ -83,16 +85,54 @@ export class BoxesService {
     return this.boxesRepository.save(box);
   }
 
+  async createWithImages(
+    createBoxDto: CreateBoxDto,
+    images?: MulterFile[],
+  ): Promise<Box> {
+    // First create the box using the existing create method
+    const box = await this.create(createBoxDto);
+
+    // If images are provided, upload them
+    if (images && images.length > 0) {
+      // Upload the first image as primary, rest as secondary
+      for (let i = 0; i < images.length; i++) {
+        const isPrimary = i === 0; // First image is primary
+        await this.boxImagesService.uploadImage(
+          box.boxId,
+          images[i],
+          isPrimary,
+        );
+      }
+
+      // Return the box with images loaded
+      return this.findOne(box.id);
+    }
+
+    return box;
+  }
+
   async findAll(): Promise<Box[]> {
     return this.boxesRepository.find({
-      relations: ['owner'],
+      relations: ['owner', 'images'],
+      order: {
+        images: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      },
     });
   }
 
   async findOne(id: number): Promise<Box> {
     const box = await this.boxesRepository.findOne({
       where: { id },
-      relations: ['owner'],
+      relations: ['owner', 'images'],
+      order: {
+        images: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      },
     });
 
     if (!box) {
@@ -105,7 +145,13 @@ export class BoxesService {
   async findOneByBoxId(boxId: string): Promise<Box> {
     const box = await this.boxesRepository.findOne({
       where: { boxId },
-      relations: ['owner'],
+      relations: ['owner', 'images'],
+      order: {
+        images: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      },
     });
 
     if (!box) {
@@ -248,7 +294,13 @@ export class BoxesService {
 
     return this.boxesRepository.find({
       where: { owner: { id: hostId } },
-      relations: ['owner'],
+      relations: ['owner', 'images'],
+      order: {
+        images: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      },
     });
   }
 
@@ -331,7 +383,7 @@ export class BoxesService {
     });
 
     const totalRevenue = reservations.reduce(
-      (sum, res) => sum + parseFloat(res.totalPrice?.toString() || '0'),
+      (sum, res) => sum + Number(res.totalPrice || 0),
       0,
     );
     const totalBookings = reservations.length;
