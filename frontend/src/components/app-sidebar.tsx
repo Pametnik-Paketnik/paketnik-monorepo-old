@@ -10,7 +10,8 @@ import {
   Send,
   Settings2,
   SquareTerminal,
-  House
+  House,
+  History
 } from "lucide-react"
 import { useSelector } from "react-redux"
 import type { RootState } from "@/store"
@@ -55,17 +56,11 @@ const data = {
       icon: Bot,
       items: [],
     },
-  ],
-  navSecondary: [
     {
-      title: "Support",
-      url: "#",
-      icon: LifeBuoy,
-    },
-    {
-      title: "Feedback",
-      url: "#",
-      icon: Send,
+      title: "Zgodovina odprtij",
+      url: "/box-opening-history",
+      icon: History,
+      items: [],
     },
   ],
   projects: [
@@ -117,7 +112,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />
