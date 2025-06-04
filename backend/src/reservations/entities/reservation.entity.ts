@@ -29,4 +29,6 @@ export class Reservation {
     default: ReservationStatus.PENDING,
   })
   status: ReservationStatus;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  totalPrice: number;
 }
