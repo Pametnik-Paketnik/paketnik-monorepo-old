@@ -5,8 +5,14 @@ export const fetchReservations = createAsyncThunk('reservations/fetchReservation
   try {
     const state = getState() as RootState;
     const token = state.auth.accessToken;
+    const hostId = state.auth.user?.id;
+
+    if (!hostId) {
+      console.error('No host ID available');
+      throw new Error('No host ID available');
+    }
     
-    const res = await fetch('http://localhost:3000/api/reservations', {
+    const res = await fetch(`http://localhost:3000/api/reservations/host/${hostId}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
