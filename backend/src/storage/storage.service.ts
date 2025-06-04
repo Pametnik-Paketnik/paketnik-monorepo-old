@@ -43,16 +43,34 @@ export class StorageService {
   }
 
   private async ensureBucketsExist(): Promise<void> {
-    for (const [, bucketName] of Object.entries(this.buckets)) {
+    for (const [bucketType, bucketName] of Object.entries(this.buckets)) {
       try {
         await this.s3.headBucket({ Bucket: bucketName }).promise();
         this.logger.log(`Bucket '${bucketName}' exists`);
+
+        // Ensure bucket policy is set even if bucket exists
+        await this.setBucketPolicy(
+          bucketType as keyof typeof this.buckets,
+          bucketName,
+        );
       } catch (error: unknown) {
         const awsError = error as AWS.AWSError;
         if (awsError.statusCode === 404) {
           try {
-            await this.s3.createBucket({ Bucket: bucketName }).promise();
+            // Create bucket with public-read ACL for images bucket
+            const params: AWS.S3.CreateBucketRequest = {
+              Bucket: bucketName,
+              ACL: bucketType === 'images' ? 'public-read' : 'private',
+            };
+
+            await this.s3.createBucket(params).promise();
             this.logger.log(`Created bucket '${bucketName}'`);
+
+            // Set bucket policy based on bucket type
+            await this.setBucketPolicy(
+              bucketType as keyof typeof this.buckets,
+              bucketName,
+            );
           } catch (createError: unknown) {
             this.logger.error(
               `Failed to create bucket '${bucketName}':`,
@@ -66,6 +84,80 @@ export class StorageService {
     }
   }
 
+  private async setBucketPolicy(
+    bucketType: keyof typeof this.buckets,
+    bucketName: string,
+  ): Promise<void> {
+    try {
+      if (bucketType === 'images') {
+        // Make images bucket public for read access
+        const publicPolicy = {
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Sid: 'PublicReadGetObject',
+              Effect: 'Allow',
+              Principal: '*',
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${bucketName}/*`],
+            },
+            {
+              Sid: 'PublicReadListBucket',
+              Effect: 'Allow',
+              Principal: '*',
+              Action: ['s3:ListBucket'],
+              Resource: [`arn:aws:s3:::${bucketName}`],
+            },
+          ],
+        };
+
+        await this.s3
+          .putBucketPolicy({
+            Bucket: bucketName,
+            Policy: JSON.stringify(publicPolicy),
+          })
+          .promise();
+
+        // Also set bucket ACL to public-read
+        await this.s3
+          .putBucketAcl({
+            Bucket: bucketName,
+            ACL: 'public-read',
+          })
+          .promise();
+
+        this.logger.log(`Set public read policy for bucket '${bucketName}'`);
+      } else {
+        // Keep other buckets (like models) private
+        const privatePolicy = {
+          Version: '2012-10-17',
+          Statement: [
+            {
+              Effect: 'Deny',
+              Principal: '*',
+              Action: ['s3:GetObject'],
+              Resource: [`arn:aws:s3:::${bucketName}/*`],
+            },
+          ],
+        };
+
+        await this.s3
+          .putBucketPolicy({
+            Bucket: bucketName,
+            Policy: JSON.stringify(privatePolicy),
+          })
+          .promise();
+
+        this.logger.log(`Bucket '${bucketName}' kept private`);
+      }
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to set policy for bucket '${bucketName}':`,
+        error,
+      );
+    }
+  }
+
   async uploadFile(
     file: MulterFile,
     options: UploadOptions,
@@ -76,7 +168,7 @@ export class StorageService {
     const key = `${path}/${timestamp}.${fileExtension}`;
 
     try {
-      const uploadResult = await this.s3
+      await this.s3
         .upload({
           Bucket: this.buckets[bucket],
           Key: key,
@@ -89,9 +181,12 @@ export class StorageService {
 
       this.logger.log(`File uploaded successfully: ${key}`);
 
+      // Generate public URL using MINIO_PUBLIC_ENDPOINT
+      const publicUrl = this.getFileUrl(bucket, key);
+
       return {
         key,
-        url: uploadResult.Location,
+        url: publicUrl,
       };
     } catch (error: unknown) {
       const errorMessage = (error as Error)?.message || 'Unknown error';
@@ -121,11 +216,13 @@ export class StorageService {
   }
 
   getFileUrl(bucket: keyof typeof this.buckets, key: string): string {
-    const endpoint = this.configService.get<string>('MINIO_ENDPOINT');
+    const publicEndpoint = this.configService.get<string>(
+      'MINIO_PUBLIC_ENDPOINT',
+    );
     const port = this.configService.get<number>('MINIO_PORT');
     const useSSL = this.configService.get<boolean>('MINIO_USE_SSL', false);
 
-    return `http${useSSL ? 's' : ''}://${endpoint}:${port}/${this.buckets[bucket]}/${key}`;
+    return `http${useSSL ? 's' : ''}://${publicEndpoint}:${port}/${this.buckets[bucket]}/${key}`;
   }
 
   async getSignedUrl(
@@ -164,7 +261,7 @@ export class StorageService {
     file: MulterFile,
     modelName: string,
   ): Promise<UploadResult> {
-    return this.uploadFile(file, {
+    const result = await this.uploadFile(file, {
       bucket: 'models',
       path: `models/${modelName}`,
       contentType: 'application/octet-stream',
@@ -173,5 +270,18 @@ export class StorageService {
         modelName: modelName,
       },
     });
+
+    // For models bucket (private), return a signed URL instead of public URL
+    const signedUrl = await this.getSignedUrl('models', result.key);
+
+    return {
+      ...result,
+      url: signedUrl,
+    };
+  }
+
+  // Get signed URL for private model files
+  async getModelUrl(key: string, expiresIn: number = 3600): Promise<string> {
+    return this.getSignedUrl('models', key, expiresIn);
   }
 }
