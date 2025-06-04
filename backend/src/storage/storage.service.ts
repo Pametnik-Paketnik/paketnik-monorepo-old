@@ -1,6 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as AWS from 'aws-sdk';
+import {
+  S3Client,
+  HeadBucketCommand,
+  CreateBucketCommand,
+  PutBucketPolicyCommand,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { MulterFile } from '../common/interfaces/multer.interface';
 
 export interface UploadOptions {
@@ -18,7 +27,7 @@ export interface UploadResult {
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
-  private readonly s3: AWS.S3;
+  private readonly s3Client: S3Client;
   private readonly buckets = {
     images: 'box-images',
     models: 'ml-models',
@@ -31,12 +40,18 @@ export class StorageService {
     const accessKey = this.configService.get<string>('MINIO_ACCESS_KEY');
     const secretKey = this.configService.get<string>('MINIO_SECRET_KEY');
 
-    this.s3 = new AWS.S3({
+    if (!endpoint || !accessKey || !secretKey) {
+      throw new Error('MinIO configuration is incomplete');
+    }
+
+    this.s3Client = new S3Client({
       endpoint: `http${useSSL ? 's' : ''}://${endpoint}:${port}`,
-      accessKeyId: accessKey,
-      secretAccessKey: secretKey,
-      s3ForcePathStyle: true,
-      signatureVersion: 'v4',
+      credentials: {
+        accessKeyId: accessKey,
+        secretAccessKey: secretKey,
+      },
+      region: 'us-east-1', // Required for MinIO
+      forcePathStyle: true,
     });
 
     void this.ensureBucketsExist();
@@ -45,7 +60,7 @@ export class StorageService {
   private async ensureBucketsExist(): Promise<void> {
     for (const [bucketType, bucketName] of Object.entries(this.buckets)) {
       try {
-        await this.s3.headBucket({ Bucket: bucketName }).promise();
+        await this.s3Client.send(new HeadBucketCommand({ Bucket: bucketName }));
         this.logger.log(`Bucket '${bucketName}' exists`);
 
         // Ensure bucket policy is set even if bucket exists
@@ -54,16 +69,21 @@ export class StorageService {
           bucketName,
         );
       } catch (error: unknown) {
-        const awsError = error as AWS.AWSError;
-        if (awsError.statusCode === 404) {
+        const awsError = error as {
+          name?: string;
+          $metadata?: { httpStatusCode?: number };
+        };
+        if (
+          awsError.name === 'NotFound' ||
+          awsError.$metadata?.httpStatusCode === 404
+        ) {
           try {
-            // Create bucket with public-read ACL for images bucket
-            const params: AWS.S3.CreateBucketRequest = {
+            // Create bucket
+            const createBucketCommand = new CreateBucketCommand({
               Bucket: bucketName,
-              ACL: bucketType === 'images' ? 'public-read' : 'private',
-            };
+            });
 
-            await this.s3.createBucket(params).promise();
+            await this.s3Client.send(createBucketCommand);
             this.logger.log(`Created bucket '${bucketName}'`);
 
             // Set bucket policy based on bucket type
@@ -103,13 +123,12 @@ export class StorageService {
           ],
         };
 
-        await this.s3
-          .putBucketPolicy({
-            Bucket: bucketName,
-            Policy: JSON.stringify(publicPolicy),
-          })
-          .promise();
+        const putPolicyCommand = new PutBucketPolicyCommand({
+          Bucket: bucketName,
+          Policy: JSON.stringify(publicPolicy),
+        });
 
+        await this.s3Client.send(putPolicyCommand);
         this.logger.log(`Set public read policy for bucket '${bucketName}'`);
       } else {
         // Keep other buckets (like models) private
@@ -125,13 +144,12 @@ export class StorageService {
           ],
         };
 
-        await this.s3
-          .putBucketPolicy({
-            Bucket: bucketName,
-            Policy: JSON.stringify(privatePolicy),
-          })
-          .promise();
+        const putPolicyCommand = new PutBucketPolicyCommand({
+          Bucket: bucketName,
+          Policy: JSON.stringify(privatePolicy),
+        });
 
+        await this.s3Client.send(putPolicyCommand);
         this.logger.log(`Bucket '${bucketName}' kept private`);
       }
     } catch (error: unknown) {
@@ -152,17 +170,16 @@ export class StorageService {
     const key = `${path}/${timestamp}.${fileExtension}`;
 
     try {
-      await this.s3
-        .upload({
-          Bucket: this.buckets[bucket],
-          Key: key,
-          Body: file.buffer,
-          ContentType: contentType || file.mimetype,
-          Metadata: metadata || {},
-          ACL: 'public-read',
-        })
-        .promise();
+      const putObjectCommand = new PutObjectCommand({
+        Bucket: this.buckets[bucket],
+        Key: key,
+        Body: file.buffer,
+        ContentType: contentType || file.mimetype,
+        Metadata: metadata || {},
+        ACL: 'public-read',
+      });
 
+      await this.s3Client.send(putObjectCommand);
       this.logger.log(`File uploaded successfully: ${key}`);
 
       // Generate public URL using MINIO_PUBLIC_ENDPOINT
@@ -173,7 +190,8 @@ export class StorageService {
         url: publicUrl,
       };
     } catch (error: unknown) {
-      const errorMessage = (error as Error)?.message || 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to upload file: ${errorMessage}`);
       throw new Error(`Failed to upload file: ${errorMessage}`);
     }
@@ -184,16 +202,16 @@ export class StorageService {
     key: string,
   ): Promise<void> {
     try {
-      await this.s3
-        .deleteObject({
-          Bucket: this.buckets[bucket],
-          Key: key,
-        })
-        .promise();
+      const deleteObjectCommand = new DeleteObjectCommand({
+        Bucket: this.buckets[bucket],
+        Key: key,
+      });
 
+      await this.s3Client.send(deleteObjectCommand);
       this.logger.log(`File deleted successfully: ${key}`);
     } catch (error: unknown) {
-      const errorMessage = (error as Error)?.message || 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to delete file: ${errorMessage}`);
       throw new Error(`Failed to delete file: ${errorMessage}`);
     }
@@ -203,10 +221,17 @@ export class StorageService {
     const publicEndpoint = this.configService.get<string>(
       'MINIO_PUBLIC_ENDPOINT',
     );
+    const publicEndpointPort =
+      this.configService.get<string>('MINIO_PUBLIC_PORT');
+    if (publicEndpoint && publicEndpointPort) {
+      return `${publicEndpoint}:${publicEndpointPort}/${this.buckets[bucket]}/${key}`;
+    }
+
+    // Fallback to configured endpoint
+    const endpoint = this.configService.get<string>('MINIO_ENDPOINT');
     const port = this.configService.get<number>('MINIO_PORT');
     const useSSL = this.configService.get<boolean>('MINIO_USE_SSL', false);
-
-    return `http${useSSL ? 's' : ''}://${publicEndpoint}:${port}/${this.buckets[bucket]}/${key}`;
+    return `http${useSSL ? 's' : ''}://${endpoint}:${port}/${this.buckets[bucket]}/${key}`;
   }
 
   async getSignedUrl(
@@ -215,56 +240,60 @@ export class StorageService {
     expiresIn: number = 3600,
   ): Promise<string> {
     try {
-      const signedUrl = await this.s3.getSignedUrlPromise('getObject', {
+      const getObjectCommand = new GetObjectCommand({
         Bucket: this.buckets[bucket],
         Key: key,
-        Expires: expiresIn,
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+      const signedUrl = await getSignedUrl(this.s3Client, getObjectCommand, {
+        expiresIn,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return signedUrl;
     } catch (error: unknown) {
-      const errorMessage = (error as Error)?.message || 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Failed to generate signed URL: ${errorMessage}`);
       throw new Error(`Failed to generate signed URL: ${errorMessage}`);
     }
   }
 
-  // Convenience methods for specific file types
+  // Convenience method for uploading box images
   async uploadBoxImage(file: MulterFile, boxId: string): Promise<UploadResult> {
     return this.uploadFile(file, {
       bucket: 'images',
       path: `boxes/${boxId}`,
       metadata: {
-        type: 'box-image',
-        boxId: boxId,
+        boxId,
+        uploadedAt: new Date().toISOString(),
       },
     });
   }
 
+  // Convenience method for uploading ML models
   async uploadModel(
     file: MulterFile,
     modelName: string,
   ): Promise<UploadResult> {
-    const result = await this.uploadFile(file, {
+    return this.uploadFile(file, {
       bucket: 'models',
       path: `models/${modelName}`,
       contentType: 'application/octet-stream',
       metadata: {
-        type: 'ml-model',
-        modelName: modelName,
+        modelName,
+        uploadedAt: new Date().toISOString(),
       },
     });
-
-    // For models bucket (private), return a signed URL instead of public URL
-    const signedUrl = await this.getSignedUrl('models', result.key);
-
-    return {
-      ...result,
-      url: signedUrl,
-    };
   }
 
-  // Get signed URL for private model files
+  // Get box image public URL
+  getBoxImageUrl(key: string): string {
+    return this.getFileUrl('images', key);
+  }
+
+  // Get model signed URL (private access)
   async getModelUrl(key: string, expiresIn: number = 3600): Promise<string> {
     return this.getSignedUrl('models', key, expiresIn);
   }
