@@ -10,6 +10,7 @@ import {
   Send,
   Settings2,
   SquareTerminal,
+  House
 } from "lucide-react"
 import { useSelector } from "react-redux"
 import type { RootState } from "@/store"
@@ -38,44 +39,21 @@ const data = {
     {
       title: "Domov",
       url: "/",
-      icon: SquareTerminal,
+      icon: House,
       isActive: true,
       items: [],
     },
     {
-      title: "Boxes",
+      title: "Paketniki",
       url: "/boxes",
       icon: BookOpen,
       items: [],
     },
     {
-      title: "Reservations",
+      title: "Rezervacije",
       url: "/reservations",
       icon: Bot,
       items: [],
-    },
-    {
-      title: "Zgodovina odpiranj",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
     },
   ],
   navSecondary: [
@@ -139,7 +117,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
