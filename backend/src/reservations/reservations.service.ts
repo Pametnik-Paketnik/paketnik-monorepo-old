@@ -415,11 +415,11 @@ export class ReservationsService {
     ); // Start of day
     const checkinEnd = new Date(reservation.checkoutAt);
 
-    if (now < checkinStart || now > checkinEnd) {
-      throw new BadRequestException(
-        `Check-in is only allowed between ${checkinStart.toISOString()} and ${checkinEnd.toISOString()}`,
-      );
-    }
+    // if (now < checkinStart || now > checkinEnd) {
+    //   throw new BadRequestException(
+    //     `Check-in is only allowed between ${checkinStart.toISOString()} and ${checkinEnd.toISOString()}`,
+    //   );
+    // }
 
     try {
       // Open the box using BoxesService
@@ -432,8 +432,9 @@ export class ReservationsService {
         user,
       );
 
-      // Update reservation status to CHECKED_IN
+      // Update reservation status to CHECKED_IN and record actual check-in time
       reservation.status = ReservationStatus.CHECKED_IN;
+      reservation.actualCheckinAt = now;
       await this.reservationsRepository.save(reservation);
 
       return {
@@ -445,7 +446,9 @@ export class ReservationsService {
         data: openBoxResponse.data,
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to check in: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to check in: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -525,8 +528,9 @@ export class ReservationsService {
         user,
       );
 
-      // Update reservation status to CHECKED_OUT
+      // Update reservation status to CHECKED_OUT and record actual check-out time
       reservation.status = ReservationStatus.CHECKED_OUT;
+      reservation.actualCheckoutAt = now;
       await this.reservationsRepository.save(reservation);
 
       return {
@@ -538,7 +542,9 @@ export class ReservationsService {
         data: openBoxResponse.data,
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to check out: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to check out: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
