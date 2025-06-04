@@ -95,18 +95,10 @@ export class StorageService {
           Version: '2012-10-17',
           Statement: [
             {
-              Sid: 'PublicReadGetObject',
               Effect: 'Allow',
-              Principal: '*',
+              Principal: { AWS: ['*'] },
               Action: ['s3:GetObject'],
               Resource: [`arn:aws:s3:::${bucketName}/*`],
-            },
-            {
-              Sid: 'PublicReadListBucket',
-              Effect: 'Allow',
-              Principal: '*',
-              Action: ['s3:ListBucket'],
-              Resource: [`arn:aws:s3:::${bucketName}`],
             },
           ],
         };
@@ -115,14 +107,6 @@ export class StorageService {
           .putBucketPolicy({
             Bucket: bucketName,
             Policy: JSON.stringify(publicPolicy),
-          })
-          .promise();
-
-        // Also set bucket ACL to public-read
-        await this.s3
-          .putBucketAcl({
-            Bucket: bucketName,
-            ACL: 'public-read',
           })
           .promise();
 
