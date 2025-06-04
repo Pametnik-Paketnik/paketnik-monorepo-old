@@ -541,4 +541,51 @@ export class ReservationsService {
       throw new BadRequestException(`Failed to check out: ${error.message}`);
     }
   }
+
+  async cancel(
+    reservationId: number,
+    jwtUser: { userId: number; username: string },
+  ): Promise<Reservation> {
+    const reservation = await this.reservationsRepository.findOne({
+      where: { id: reservationId },
+      relations: ['guest', 'host'],
+    });
+
+    if (!reservation) {
+      throw new NotFoundException(
+        `Reservation with ID ${reservationId} not found`,
+      );
+    }
+
+    // Check if the user is either the guest or the host
+    if (
+      reservation.guest.id !== jwtUser.userId &&
+      reservation.host.id !== jwtUser.userId
+    ) {
+      throw new BadRequestException(
+        'Only the guest or host can cancel this reservation',
+      );
+    }
+
+    // Check if the reservation can be cancelled
+    if (reservation.status === ReservationStatus.CHECKED_IN) {
+      throw new BadRequestException(
+        'Cannot cancel a reservation that is already checked in',
+      );
+    }
+
+    if (reservation.status === ReservationStatus.CHECKED_OUT) {
+      throw new BadRequestException(
+        'Cannot cancel a reservation that is already checked out',
+      );
+    }
+
+    if (reservation.status === ReservationStatus.CANCELLED) {
+      throw new BadRequestException('Reservation is already cancelled');
+    }
+
+    // Update the reservation status to CANCELLED
+    reservation.status = ReservationStatus.CANCELLED;
+    return await this.reservationsRepository.save(reservation);
+  }
 }
