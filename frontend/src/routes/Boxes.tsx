@@ -27,6 +27,7 @@ interface Box {
   id: string;
   name: string | null;
   hostId: number | null;
+  pricePerNight: string | number;
   [key: string]: any; 
 }
 
@@ -40,13 +41,20 @@ export default function BoxesPage() {
   const [newBoxData, setNewBoxData] = useState({
     boxId: '',
     location: '',
-    status: 'FREE'
+    pricePerNight: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingBox, setEditingBox] = useState<Box | null>(null);
 
   useEffect(() => {
     dispatch(fetchBoxes());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (selectedBox) {
+      setEditingBox(selectedBox);
+    }
+  }, [selectedBox]);
 
   const validItems = (items as Box[]).filter((item) => {
     const hasId = item && typeof item.boxId === 'string' && item.boxId.length > 0;
@@ -70,7 +78,8 @@ export default function BoxesPage() {
         },
         body: JSON.stringify({
           ...newBoxData,
-          ownerId: user.id
+          ownerId: user.id,
+          pricePerNight: Number(newBoxData.pricePerNight)
         })
       });
 
@@ -81,9 +90,51 @@ export default function BoxesPage() {
       // Refresh the boxes list
       dispatch(fetchBoxes());
       setIsAddDialogOpen(false);
-      setNewBoxData({ boxId: '', location: '', status: 'FREE' });
+      setNewBoxData({
+        boxId: '',
+        location: '',
+        pricePerNight: ''
+      });
     } catch (error) {
       console.error('Error adding box:', error);
+      // TODO: Show error message to user
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateBox = async () => {
+    if (!user?.id || !token || !editingBox) {
+      console.error('No user ID, token, or box data available');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`http://localhost:3000/api/boxes/${editingBox.boxId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        },
+        body: JSON.stringify({
+          boxId: editingBox.boxId,
+          location: editingBox.location,
+          pricePerNight: editingBox.pricePerNight ? Number(editingBox.pricePerNight) : null
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update box');
+      }
+
+      // Refresh the boxes list
+      dispatch(fetchBoxes());
+      setSelectedBox(null);
+      setEditingBox(null);
+    } catch (error) {
+      console.error('Error updating box:', error);
       // TODO: Show error message to user
     } finally {
       setIsSubmitting(false);
@@ -136,8 +187,10 @@ export default function BoxesPage() {
                       <span className="text-sm font-medium">{box.location || '-'}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Status:</span>
-                      <span className="text-sm font-medium">{box.status || '-'}</span>
+                      <span className="text-sm text-muted-foreground">Price per night:</span>
+                      <span className="text-sm font-medium">
+                        ${Number(box.pricePerNight || 0).toFixed(2)}
+                      </span>
                     </div>
                     <div className="pt-2">
                       <Button 
@@ -195,19 +248,16 @@ export default function BoxesPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <Select
-                value={newBoxData.status}
-                onValueChange={(value) => setNewBoxData(prev => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FREE">Free</SelectItem>
-                  <SelectItem value="BUSY">Busy</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="pricePerNight">Price per Night</Label>
+              <Input
+                id="pricePerNight"
+                type="number"
+                step="0.01"
+                min="0"
+                value={newBoxData.pricePerNight}
+                onChange={(e) => setNewBoxData(prev => ({ ...prev, pricePerNight: e.target.value }))}
+                placeholder="Enter price per night"
+              />
             </div>
           </div>
           <DialogFooter>
@@ -229,24 +279,69 @@ export default function BoxesPage() {
       </Dialog>
 
       {/* Box Details Dialog */}
-      <Dialog open={!!selectedBox} onOpenChange={() => setSelectedBox(null)}>
+      <Dialog open={!!selectedBox} onOpenChange={() => {
+        setSelectedBox(null);
+        setEditingBox(null);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Box Details</DialogTitle>
             <DialogDescription>
-              Detailed information about the selected box
+              Edit box information
             </DialogDescription>
           </DialogHeader>
-          {selectedBox && (
+          {editingBox && (
             <div className="grid gap-4 py-4">
-              {Object.entries(selectedBox).map(([key, value]) => (
-                <div key={key} className="grid grid-cols-4 items-center gap-4">
-                  <div className="font-medium">{key}</div>
-                  <div className="col-span-3">{value?.toString() || '-'}</div>
-                </div>
-              ))}
+              <div className="grid gap-2">
+                <Label htmlFor="edit-boxId">Box ID</Label>
+                <Input
+                  id="edit-boxId"
+                  value={editingBox.boxId}
+                  onChange={(e) => setEditingBox(prev => prev ? { ...prev, boxId: e.target.value } : null)}
+                  placeholder="Enter box ID"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-location">Location</Label>
+                <Input
+                  id="edit-location"
+                  value={editingBox.location || ''}
+                  onChange={(e) => setEditingBox(prev => prev ? { ...prev, location: e.target.value } : null)}
+                  placeholder="Enter location"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-pricePerNight">Price per Night</Label>
+                <Input
+                  id="edit-pricePerNight"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editingBox.pricePerNight || ''}
+                  onChange={(e) => setEditingBox(prev => prev ? { ...prev, pricePerNight: e.target.value } : null)}
+                  placeholder="Enter price per night"
+                />
+              </div>
             </div>
           )}
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setSelectedBox(null);
+                setEditingBox(null);
+              }}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateBox}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
