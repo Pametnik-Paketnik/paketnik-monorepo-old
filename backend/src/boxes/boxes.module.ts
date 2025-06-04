@@ -3,6 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BoxesService } from './boxes.service';
 import { BoxesController } from './boxes.controller';
 import { Box } from './entities/box.entity';
+import { BoxImage } from './entities/box-image.entity';
+import { BoxImagesService } from './services/box-images.service';
+import { BoxImagesController } from './controllers/box-images.controller';
+import { StorageModule } from '../storage/storage.module';
 import { HttpModule } from '@nestjs/axios';
 import { UnlockHistory } from './entities/unlock-history.entity';
 import { UsersModule } from '../users/users.module';
@@ -11,11 +15,12 @@ import { Reservation } from '../reservations/entities/reservation.entity';
 @Module({
   imports: [
     UsersModule,
-    TypeOrmModule.forFeature([Box, UnlockHistory, Reservation]),
+    StorageModule,
+    TypeOrmModule.forFeature([Box, BoxImage, UnlockHistory, Reservation]),
     HttpModule,
   ],
-  controllers: [BoxesController],
-  providers: [BoxesService],
-  exports: [BoxesService],
+  controllers: [BoxesController, BoxImagesController],
+  providers: [BoxesService, BoxImagesService],
+  exports: [BoxesService, BoxImagesService],
 })
 export class BoxesModule {}
