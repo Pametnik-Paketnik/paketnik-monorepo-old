@@ -43,4 +43,8 @@ export class CreateBoxDto {
   @IsEnum(['FREE', 'BUSY'])
   @IsOptional()
   status?: 'FREE' | 'BUSY';
+
+  @IsNumber()
+  @IsOptional()
+  pricePerNight?: number;
 }

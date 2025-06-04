@@ -22,4 +22,6 @@ export class Box {
   @JoinColumn({ name: 'owner_id' })
   owner: User;
   @OneToMany(() => Reservation, (r) => r.box) reservations: Reservation[];
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  pricePerNight: number;
 }
