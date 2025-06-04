@@ -16,6 +16,7 @@ import { CheckinReservationDto } from './dto/checkin-reservation.dto';
 import { CheckoutReservationDto } from './dto/checkout-reservation.dto';
 import { CheckinResponseDto } from './dto/checkin-response.dto';
 import { CheckoutResponseDto } from './dto/checkout-response.dto';
+import { CancelReservationDto } from './dto/cancel-reservation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   ApiTags,
@@ -183,5 +184,22 @@ export class ReservationsController {
   @ApiResponse({ status: 404, description: 'Reservation not found.' })
   checkout(@Body() checkoutDto: CheckoutReservationDto, @Req() req: any) {
     return this.reservationsService.checkout(checkoutDto, req.user);
+  }
+
+  @Post('cancel')
+  @ApiOperation({ summary: 'Cancel a reservation' })
+  @ApiResponse({
+    status: 200,
+    description: 'The reservation has been successfully cancelled.',
+    type: Reservation,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - invalid reservation status or user validation.',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Reservation not found.' })
+  cancel(@Body() cancelDto: CancelReservationDto, @Req() req: any) {
+    return this.reservationsService.cancel(cancelDto.reservationId, req.user);
   }
 }
