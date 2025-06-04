@@ -13,10 +13,10 @@ import {
 } from "@/components/ui/dialog";
 
 interface Box {
-  id: number;
+  id: string;
   name: string | null;
   hostId: number | null;
-  [key: string]: any; // For other potential fields
+  [key: string]: any; 
 }
 
 export default function BoxesPage() {
@@ -28,48 +28,78 @@ export default function BoxesPage() {
     dispatch(fetchBoxes());
   }, [dispatch]);
 
+  useEffect(() => {
+  }, [items, loading, error]);
+
+  const validItems = (items as Box[]).filter((item) => {
+    const hasId = item && typeof item.boxId === 'string' && item.boxId.length > 0;
+    return hasId;
+  });
+
+
   return (
     <div key="page-container" className="@container/main flex flex-1 flex-col gap-2">
       <div key="content-container" className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-        <Card key="boxes-card">
-          <CardHeader key="boxes-header">
-            <CardTitle key="boxes-title">Boxes</CardTitle>
-          </CardHeader>
-          <CardContent key="boxes-content">
-            {loading && <div key="loading">Loading...</div>}
-            {error && <div key="error" className="text-red-500">{error}</div>}
-            <div key="table-container" className="overflow-x-auto">
-              <table className="min-w-full border text-sm">
-                <thead>
-                  <tr className="bg-muted" key="header-row">
-                    <th key="id" className="px-4 py-2 border">ID</th>
-                    <th key="name" className="px-4 py-2 border">Name</th>
-                    <th key="host" className="px-4 py-2 border">Host</th>
-                    <th key="actions" className="px-4 py-2 border">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((box: Box) => (
-                    <tr key={`row-${box.id}`} className="border-b">
-                      <td key={`${box.id}-id`} className="px-4 py-2 border">{box.id}</td>
-                      <td key={`${box.id}-name`} className="px-4 py-2 border">{box.name || '-'}</td>
-                      <td key={`${box.id}-host`} className="px-4 py-2 border">{box.hostId || '-'}</td>
-                      <td key={`${box.id}-actions`} className="px-4 py-2 border">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => setSelectedBox(box)}
-                        >
-                          Details
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {loading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="text-lg font-medium mb-2">Loading boxes...</div>
+              <div className="text-sm text-muted-foreground">Please wait while we fetch your boxes</div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+        
+        {error && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center text-red-500">
+              <div className="text-lg font-medium mb-2">Error loading boxes</div>
+              <div className="text-sm">{error}</div>
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && validItems.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {validItems.map((box) => (
+              <Card key={`box-${box.boxId}`} className="flex flex-col">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Box {box.boxId}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Location:</span>
+                      <span className="text-sm font-medium">{box.location || '-'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Status:</span>
+                      <span className="text-sm font-medium">{box.status || '-'}</span>
+                    </div>
+                    <div className="pt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => setSelectedBox(box)}
+                      >
+                        Details
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && validItems.length === 0 && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="text-lg font-medium mb-2">No boxes found</div>
+              <div className="text-sm text-muted-foreground">You don't have any boxes yet</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <Dialog open={!!selectedBox} onOpenChange={() => setSelectedBox(null)}>
