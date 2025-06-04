@@ -121,11 +121,17 @@ export class StorageService {
   }
 
   getFileUrl(bucket: keyof typeof this.buckets, key: string): string {
-    const endpoint = this.configService.get<string>('MINIO_ENDPOINT');
-    const port = this.configService.get<number>('MINIO_PORT');
+    const publicEndpoint = this.configService.get<string>(
+      'MINIO_PUBLIC_ENDPOINT',
+      'localhost',
+    );
+    const publicPort = this.configService.get<number>(
+      'MINIO_PUBLIC_PORT',
+      this.configService.get<number>('MINIO_PORT', 9000),
+    );
     const useSSL = this.configService.get<boolean>('MINIO_USE_SSL', false);
 
-    return `http${useSSL ? 's' : ''}://${endpoint}:${port}/${this.buckets[bucket]}/${key}`;
+    return `http${useSSL ? 's' : ''}://${publicEndpoint}:${publicPort}/${this.buckets[bucket]}/${key}`;
   }
 
   async getSignedUrl(
