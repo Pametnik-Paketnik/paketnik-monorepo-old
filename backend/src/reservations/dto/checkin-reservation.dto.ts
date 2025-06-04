@@ -6,4 +6,4 @@ export class CheckinReservationDto {
   @IsInt()
   @IsNotEmpty()
   reservationId: number;
-} 
+}

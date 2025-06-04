@@ -31,6 +31,28 @@ export class ReservationsService {
     private configService: ConfigService,
   ) {}
 
+  private calculateTotalPrice(
+    box: Box,
+    checkinAt: Date,
+    checkoutAt: Date,
+  ): number {
+    // Calculate the difference in days, considering only the date part (not time)
+    const checkinDate = new Date(
+      checkinAt.getFullYear(),
+      checkinAt.getMonth(),
+      checkinAt.getDate(),
+    );
+    const checkoutDate = new Date(
+      checkoutAt.getFullYear(),
+      checkoutAt.getMonth(),
+      checkoutAt.getDate(),
+    );
+    const nights = Math.floor(
+      (checkoutDate.getTime() - checkinDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    return box.pricePerNight * nights;
+  }
+
   async create(
     createReservationDto: CreateReservationDto,
   ): Promise<Reservation> {
@@ -60,6 +82,14 @@ export class ReservationsService {
           `Box with BoxID ${createReservationDto.boxId} not found`,
         );
       }
+
+      if (!box.pricePerNight) {
+        throw new BadRequestException(
+          'Box does not have a price per night set',
+        );
+      }
+
+      const totalPrice = this.calculateTotalPrice(box, checkinAt, checkoutAt);
 
       // Check if guest exists
       const guest = await this.usersRepository.findOne({
@@ -122,6 +152,8 @@ export class ReservationsService {
         box,
         guest,
         host,
+        status: ReservationStatus.PENDING,
+        totalPrice,
       });
 
       return await this.reservationsRepository.save(reservation);
@@ -135,7 +167,7 @@ export class ReservationsService {
         throw error;
       }
       throw new BadRequestException(
-        `Failed to create reservation: ${error.message}`,
+        `Failed to create reservation: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -324,7 +356,10 @@ export class ReservationsService {
     await this.reservationsRepository.remove(reservation);
   }
 
-  async checkin(checkinDto: CheckinReservationDto, jwtUser: { userId: number; username: string }): Promise<CheckinResponseDto> {
+  async checkin(
+    checkinDto: CheckinReservationDto,
+    jwtUser: { userId: number; username: string },
+  ): Promise<CheckinResponseDto> {
     // First, get the full user entity from the database
     const user = await this.usersRepository.findOne({
       where: { id: jwtUser.userId },
@@ -341,53 +376,66 @@ export class ReservationsService {
     });
 
     if (!reservation) {
-      throw new NotFoundException(`Reservation with ID ${checkinDto.reservationId} not found`);
+      throw new NotFoundException(
+        `Reservation with ID ${checkinDto.reservationId} not found`,
+      );
     }
 
     // Validate that the user is the guest of this reservation
     if (reservation.guest.id !== user.id) {
-      throw new BadRequestException('You can only check in to your own reservations');
+      throw new BadRequestException(
+        'You can only check in to your own reservations',
+      );
     }
 
     // Validate that the guest is of USER type
     if (user.userType !== UserType.USER) {
-      throw new BadRequestException('Only guest users (USER type) can check in');
+      throw new BadRequestException(
+        'Only guest users (USER type) can check in',
+      );
     }
 
     // Validate reservation status
     if (reservation.status !== ReservationStatus.PENDING) {
-      throw new BadRequestException(`Cannot check in to reservation with status: ${reservation.status}`);
+      throw new BadRequestException(
+        `Cannot check in to reservation with status: ${reservation.status}`,
+      );
     }
 
     // Validate time window (check-in allowed from start of checkinAt date to checkoutAt)
     const now = new Date();
     const checkinDate = new Date(reservation.checkinAt);
-    const checkinStart = new Date(checkinDate.getFullYear(), checkinDate.getMonth(), checkinDate.getDate(), 0, 0, 0); // Start of day
+    const checkinStart = new Date(
+      checkinDate.getFullYear(),
+      checkinDate.getMonth(),
+      checkinDate.getDate(),
+      0,
+      0,
+      0,
+    ); // Start of day
     const checkinEnd = new Date(reservation.checkoutAt);
 
-    if (now < checkinStart || now > checkinEnd) {
-      throw new BadRequestException(
-        `Check-in is only allowed between ${checkinStart.toISOString()} and ${checkinEnd.toISOString()}`
-      );
-    }
+    // if (now < checkinStart || now > checkinEnd) {
+    //   throw new BadRequestException(
+    //     `Check-in is only allowed between ${checkinStart.toISOString()} and ${checkinEnd.toISOString()}`,
+    //   );
+    // }
 
     try {
       // Open the box using BoxesService
       const openBoxResponse = await this.boxesService.openBox(
         {
           boxId: parseInt(reservation.box.boxId), // Convert string boxId to number for Direct4me API
-          tokenFormat: this.configService.get<number>('DIRECT4ME_TOKEN_FORMAT') ?? 5, // Use DIRECT4ME_TOKEN_FORMAT from environment variables
+          tokenFormat:
+            this.configService.get<number>('DIRECT4ME_TOKEN_FORMAT') ?? 5, // Use DIRECT4ME_TOKEN_FORMAT from environment variables
         },
         user,
       );
 
-      // Update reservation status to CHECKED_IN
+      // Update reservation status to CHECKED_IN and record actual check-in time
       reservation.status = ReservationStatus.CHECKED_IN;
+      reservation.actualCheckinAt = now;
       await this.reservationsRepository.save(reservation);
-
-      // Update box status to BUSY
-      reservation.box.status = 'BUSY';
-      await this.boxesRepository.save(reservation.box);
 
       return {
         success: true,
@@ -398,11 +446,16 @@ export class ReservationsService {
         data: openBoxResponse.data,
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to check in: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to check in: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
-  async checkout(checkoutDto: CheckoutReservationDto, jwtUser: { userId: number; username: string }): Promise<CheckoutResponseDto> {
+  async checkout(
+    checkoutDto: CheckoutReservationDto,
+    jwtUser: { userId: number; username: string },
+  ): Promise<CheckoutResponseDto> {
     // First, get the full user entity from the database
     const user = await this.usersRepository.findOne({
       where: { id: jwtUser.userId },
@@ -419,33 +472,48 @@ export class ReservationsService {
     });
 
     if (!reservation) {
-      throw new NotFoundException(`Reservation with ID ${checkoutDto.reservationId} not found`);
+      throw new NotFoundException(
+        `Reservation with ID ${checkoutDto.reservationId} not found`,
+      );
     }
 
     // Validate that the user is the guest of this reservation
     if (reservation.guest.id !== user.id) {
-      throw new BadRequestException('You can only check out of your own reservations');
+      throw new BadRequestException(
+        'You can only check out of your own reservations',
+      );
     }
 
     // Validate that the guest is of USER type
     if (user.userType !== UserType.USER) {
-      throw new BadRequestException('Only guest users (USER type) can check out');
+      throw new BadRequestException(
+        'Only guest users (USER type) can check out',
+      );
     }
 
     // Validate reservation status
     if (reservation.status !== ReservationStatus.CHECKED_IN) {
-      throw new BadRequestException(`Cannot check out of reservation with status: ${reservation.status}`);
+      throw new BadRequestException(
+        `Cannot check out of reservation with status: ${reservation.status}`,
+      );
     }
 
     // Validate time window (check-out allowed from checkinAt to end of checkoutAt date)
     const now = new Date();
     const checkoutStart = new Date(reservation.checkinAt);
     const checkoutDate = new Date(reservation.checkoutAt);
-    const checkoutEnd = new Date(checkoutDate.getFullYear(), checkoutDate.getMonth(), checkoutDate.getDate(), 23, 59, 59); // End of day
+    const checkoutEnd = new Date(
+      checkoutDate.getFullYear(),
+      checkoutDate.getMonth(),
+      checkoutDate.getDate(),
+      23,
+      59,
+      59,
+    ); // End of day
 
     if (now < checkoutStart || now > checkoutEnd) {
       throw new BadRequestException(
-        `Check-out is only allowed between ${checkoutStart.toISOString()} and ${checkoutEnd.toISOString()}`
+        `Check-out is only allowed between ${checkoutStart.toISOString()} and ${checkoutEnd.toISOString()}`,
       );
     }
 
@@ -453,19 +521,17 @@ export class ReservationsService {
       // Open the box using BoxesService
       const openBoxResponse = await this.boxesService.openBox(
         {
-          boxId: parseInt(reservation.box.boxId), // Convert string boxId to number for Direct4me API
-          tokenFormat: this.configService.get<number>('DIRECT4ME_TOKEN_FORMAT') ?? 5, // Use DIRECT4ME_TOKEN_FORMAT from environment variables
+          boxId: parseInt(reservation.box.boxId),
+          tokenFormat:
+            this.configService.get<number>('DIRECT4ME_TOKEN_FORMAT') ?? 5,
         },
         user,
       );
 
-      // Update reservation status to CHECKED_OUT
+      // Update reservation status to CHECKED_OUT and record actual check-out time
       reservation.status = ReservationStatus.CHECKED_OUT;
+      reservation.actualCheckoutAt = now;
       await this.reservationsRepository.save(reservation);
-
-      // Update box status to FREE
-      reservation.box.status = 'FREE';
-      await this.boxesRepository.save(reservation.box);
 
       return {
         success: true,
@@ -473,9 +539,59 @@ export class ReservationsService {
         reservationId: reservation.id,
         boxId: reservation.box.boxId,
         status: reservation.status,
+        data: openBoxResponse.data,
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to check out: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to check out: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
+  }
+
+  async cancel(
+    reservationId: number,
+    jwtUser: { userId: number; username: string },
+  ): Promise<Reservation> {
+    const reservation = await this.reservationsRepository.findOne({
+      where: { id: reservationId },
+      relations: ['guest', 'host'],
+    });
+
+    if (!reservation) {
+      throw new NotFoundException(
+        `Reservation with ID ${reservationId} not found`,
+      );
+    }
+
+    // Check if the user is either the guest or the host
+    if (
+      reservation.guest.id !== jwtUser.userId &&
+      reservation.host.id !== jwtUser.userId
+    ) {
+      throw new BadRequestException(
+        'Only the guest or host can cancel this reservation',
+      );
+    }
+
+    // Check if the reservation can be cancelled
+    if (reservation.status === ReservationStatus.CHECKED_IN) {
+      throw new BadRequestException(
+        'Cannot cancel a reservation that is already checked in',
+      );
+    }
+
+    if (reservation.status === ReservationStatus.CHECKED_OUT) {
+      throw new BadRequestException(
+        'Cannot cancel a reservation that is already checked out',
+      );
+    }
+
+    if (reservation.status === ReservationStatus.CANCELLED) {
+      throw new BadRequestException('Reservation is already cancelled');
+    }
+
+    // Update the reservation status to CANCELLED
+    reservation.status = ReservationStatus.CANCELLED;
+    return await this.reservationsRepository.save(reservation);
   }
 }

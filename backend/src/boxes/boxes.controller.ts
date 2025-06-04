@@ -20,7 +20,6 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { Box } from './entities/box.entity';
 import { OpenBoxDto } from './dto/open-box.dto';
@@ -173,5 +172,82 @@ export class BoxesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   remove(@Param('boxId') boxId: string) {
     return this.boxesService.removeByBoxId(boxId);
+  }
+
+  @Get(':boxId/availability')
+  @ApiOperation({ summary: 'Get box availability schedule' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Returns the box availability schedule showing future unavailable dates',
+  })
+  @ApiResponse({ status: 404, description: 'Box not found.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async getBoxAvailability(@Param('boxId') boxId: string) {
+    return this.boxesService.getBoxAvailability(boxId);
+  }
+
+  @Get(':boxId/revenue')
+  @ApiOperation({ summary: 'Get revenue for a specific box' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return revenue for the specified box.',
+    schema: {
+      type: 'object',
+      properties: {
+        totalRevenue: { type: 'number' },
+        totalBookings: { type: 'number' },
+        averageRevenuePerBooking: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async getBoxRevenue(
+    @Param('boxId') boxId: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.boxesService.calculateBoxRevenue(
+      boxId,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+  }
+
+  @Get('host/:hostId/revenue')
+  @ApiOperation({ summary: "Get revenue for all host's boxes" })
+  @ApiResponse({
+    status: 200,
+    description: "Return revenue for all host's boxes.",
+    schema: {
+      type: 'object',
+      properties: {
+        totalRevenue: { type: 'number' },
+        totalBookings: { type: 'number' },
+        boxesRevenue: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              boxId: { type: 'string' },
+              revenue: { type: 'number' },
+              bookings: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async getHostRevenue(
+    @Param('hostId') hostId: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.boxesService.getHostRevenue(
+      hostId,
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
   }
 }

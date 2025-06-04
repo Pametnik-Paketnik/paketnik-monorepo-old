@@ -21,7 +21,7 @@ export class Box {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'owner_id' })
   owner: User;
-  @Column({ type: 'enum', enum: ['FREE', 'BUSY'], default: 'FREE' })
-  status: 'FREE' | 'BUSY';
   @OneToMany(() => Reservation, (r) => r.box) reservations: Reservation[];
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  pricePerNight: number;
 }

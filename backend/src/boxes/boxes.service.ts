@@ -19,6 +19,9 @@ import { firstValueFrom } from 'rxjs';
 import { UnlockHistory } from './entities/unlock-history.entity';
 import { User } from '../users/entities/user.entity';
 import { UserType } from '../users/entities/user.entity';
+import { Reservation } from '../reservations/entities/reservation.entity';
+import { Not, Between } from 'typeorm';
+import { ReservationStatus } from '../reservations/entities/reservation.entity';
 
 export interface OpenBoxResponse {
   data: string;
@@ -41,6 +44,8 @@ export class BoxesService {
     private readonly unlockHistoryRepo: Repository<UnlockHistory>,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    @InjectRepository(Reservation)
+    private readonly reservationsRepository: Repository<Reservation>,
   ) {
     const config = getDirect4meConfig(this.configService);
     this.apiKey = config.apiKey ?? '';
@@ -268,5 +273,127 @@ export class BoxesService {
       relations: ['user'],
       order: { timestamp: 'DESC' },
     });
+  }
+
+  async getBoxAvailability(boxId: string) {
+    const box = await this.findOneByBoxId(boxId);
+    if (!box) {
+      throw new NotFoundException(`Box with ID ${boxId} not found`);
+    }
+
+    const now = new Date();
+
+    const query = this.boxesRepository
+      .createQueryBuilder('box')
+      .leftJoinAndSelect('box.reservations', 'reservation')
+      .where('box.boxId = :boxId', { boxId })
+      .andWhere('reservation.status != :cancelled', { cancelled: 'CANCELLED' })
+      .andWhere('reservation.checkoutAt > :now', { now }); // Only future reservations
+
+    const boxWithReservations = await query.getOne();
+
+    // Transform reservations into unavailable dates
+    const unavailableDates = (boxWithReservations?.reservations || []).map(
+      (reservation) => ({
+        startDate: reservation.checkinAt,
+        endDate: reservation.checkoutAt,
+        status: reservation.status,
+      }),
+    );
+
+    return {
+      boxId: box.boxId,
+      location: box.location,
+      unavailableDates,
+    };
+  }
+
+  async calculateBoxRevenue(
+    boxId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<{
+    totalRevenue: number;
+    totalBookings: number;
+    averageRevenuePerBooking: number;
+  }> {
+    const box = await this.findOneByBoxId(boxId);
+    const reservations = await this.reservationsRepository.find({
+      where: {
+        box: { id: box.id },
+        status: Not(ReservationStatus.CANCELLED),
+        ...(startDate && endDate
+          ? {
+              checkinAt: Between(startDate, endDate),
+            }
+          : {}),
+      },
+    });
+
+    const totalRevenue = reservations.reduce(
+      (sum, res) => sum + parseFloat(res.totalPrice?.toString() || '0'),
+      0,
+    );
+    const totalBookings = reservations.length;
+    const averageRevenuePerBooking =
+      totalBookings > 0 ? Number((totalRevenue / totalBookings).toFixed(2)) : 0;
+
+    return {
+      totalRevenue: Number(totalRevenue.toFixed(2)),
+      totalBookings,
+      averageRevenuePerBooking,
+    };
+  }
+
+  async getHostRevenue(
+    hostId: number,
+    startDate?: Date,
+    endDate?: Date,
+  ): Promise<{
+    totalRevenue: number;
+    totalBookings: number;
+    averageRevenuePerBooking: number;
+    boxesRevenue: Array<{
+      boxId: string;
+      revenue: number;
+      bookings: number;
+      averageRevenuePerBooking: number;
+    }>;
+  }> {
+    const boxes = await this.findByHostId(hostId);
+    let totalRevenue = 0;
+    let totalBookings = 0;
+    const boxesRevenue: Array<{
+      boxId: string;
+      revenue: number;
+      bookings: number;
+      averageRevenuePerBooking: number;
+    }> = [];
+
+    for (const box of boxes) {
+      const boxStats = await this.calculateBoxRevenue(
+        box.boxId,
+        startDate,
+        endDate,
+      );
+      totalRevenue += boxStats.totalRevenue;
+      totalBookings += boxStats.totalBookings;
+      boxesRevenue.push({
+        boxId: box.boxId,
+        revenue: boxStats.totalRevenue,
+        bookings: boxStats.totalBookings,
+        averageRevenuePerBooking: boxStats.averageRevenuePerBooking,
+      });
+    }
+
+    return {
+      totalRevenue: Number(totalRevenue.toFixed(2)),
+      totalBookings,
+      averageRevenuePerBooking:
+        totalBookings > 0
+          ? Number((totalRevenue / totalBookings).toFixed(2))
+          : 0,
+      boxesRevenue,
+    };
   }
 }

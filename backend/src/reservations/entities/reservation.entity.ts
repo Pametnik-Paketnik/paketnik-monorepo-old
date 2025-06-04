@@ -23,10 +23,14 @@ export class Reservation {
   @ManyToOne(() => Box) @JoinColumn({ name: 'box_id' }) box: Box;
   @Column({ type: 'timestamptz' }) checkinAt: Date;
   @Column({ type: 'timestamptz' }) checkoutAt: Date;
+  @Column({ type: 'timestamptz', nullable: true }) actualCheckinAt: Date;
+  @Column({ type: 'timestamptz', nullable: true }) actualCheckoutAt: Date;
   @Column({
     type: 'enum',
     enum: ReservationStatus,
     default: ReservationStatus.PENDING,
   })
   status: ReservationStatus;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  totalPrice: number;
 }
