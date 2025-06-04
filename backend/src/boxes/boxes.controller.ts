@@ -10,7 +10,10 @@ import {
   Req,
   UnauthorizedException,
   Query,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { BoxesService } from './boxes.service';
 import { CreateBoxDto } from './dto/create-box.dto';
 import { UpdateBoxDto } from './dto/update-box.dto';
@@ -20,6 +23,8 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { Box } from './entities/box.entity';
 import { OpenBoxDto } from './dto/open-box.dto';
@@ -41,7 +46,50 @@ export class BoxesController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new box' })
+  @UseInterceptors(FilesInterceptor('images', 10)) // Allow up to 10 images
+  @ApiOperation({
+    summary: 'Create a new box',
+    description:
+      'Create a new box with optional image uploads. Supports both JSON and multipart/form-data requests.',
+  })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @ApiBody({
+    description: 'Box creation data with optional images',
+    schema: {
+      type: 'object',
+      properties: {
+        boxId: {
+          type: 'string',
+          description: 'The unique identifier of the box',
+          example: 'BOX123',
+        },
+        location: {
+          type: 'string',
+          description: 'The location of the box',
+          example: 'Building A, Floor 1',
+        },
+        ownerId: {
+          type: 'string',
+          description: 'The ID of the host who owns this box',
+          example: '123',
+        },
+        pricePerNight: {
+          type: 'string',
+          description: 'Price per night for the box',
+          example: '25.99',
+        },
+        images: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+          description: 'Image files for the box (max 10 files)',
+        },
+      },
+      required: ['boxId', 'location', 'ownerId', 'pricePerNight'],
+    },
+  })
   @ApiResponse({
     status: 201,
     description: 'The box has been successfully created.',
@@ -50,7 +98,13 @@ export class BoxesController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 409, description: 'Box with this ID already exists.' })
-  create(@Body() createBoxDto: CreateBoxDto) {
+  create(@Body() createBoxDto: CreateBoxDto, @UploadedFiles() images?: any[]) {
+    // If images are provided, use the createWithImages method
+    if (images && images.length > 0) {
+      return this.boxesService.createWithImages(createBoxDto, images);
+    }
+
+    // Otherwise, use the regular create method
     return this.boxesService.create(createBoxDto);
   }
 

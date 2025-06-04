@@ -21,6 +21,8 @@ import { User, UserType } from '../users/entities/user.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { Not, Between } from 'typeorm';
 import { ReservationStatus } from '../reservations/entities/reservation.entity';
+import { BoxImagesService } from './services/box-images.service';
+import { MulterFile } from '../common/interfaces/multer.interface';
 
 export interface OpenBoxResponse {
   data: string;
@@ -45,6 +47,7 @@ export class BoxesService {
     private readonly configService: ConfigService,
     @InjectRepository(Reservation)
     private readonly reservationsRepository: Repository<Reservation>,
+    private readonly boxImagesService: BoxImagesService,
   ) {
     const config = getDirect4meConfig(this.configService);
     this.apiKey = config.apiKey ?? '';
@@ -80,6 +83,32 @@ export class BoxesService {
       owner: owner,
     });
     return this.boxesRepository.save(box);
+  }
+
+  async createWithImages(
+    createBoxDto: CreateBoxDto,
+    images?: MulterFile[],
+  ): Promise<Box> {
+    // First create the box using the existing create method
+    const box = await this.create(createBoxDto);
+
+    // If images are provided, upload them
+    if (images && images.length > 0) {
+      // Upload the first image as primary, rest as secondary
+      for (let i = 0; i < images.length; i++) {
+        const isPrimary = i === 0; // First image is primary
+        await this.boxImagesService.uploadImage(
+          box.boxId,
+          images[i],
+          isPrimary,
+        );
+      }
+
+      // Return the box with images loaded
+      return this.findOne(box.id);
+    }
+
+    return box;
   }
 
   async findAll(): Promise<Box[]> {
