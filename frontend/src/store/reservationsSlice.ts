@@ -1,8 +1,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import type { RootState } from './index';
 
-export const fetchReservations = createAsyncThunk('reservations/fetchReservations', async (_, { rejectWithValue }) => {
+export const fetchReservations = createAsyncThunk('reservations/fetchReservations', async (_, { rejectWithValue, getState }) => {
   try {
-    const res = await fetch('http://localhost:3000/api/reservations');
+    const state = getState() as RootState;
+    const token = state.auth.accessToken;
+    
+    const res = await fetch('http://localhost:3000/api/reservations', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
     if (!res.ok) throw new Error('Failed to fetch reservations');
     return await res.json();
   } catch (err: any) {
