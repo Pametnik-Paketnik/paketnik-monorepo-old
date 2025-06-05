@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchBoxes } from '@/store/boxesSlice';
 import type { RootState, AppDispatch } from '@/store';
 import { apiPost, apiPatch, apiPostFormData } from '@/lib/api';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,6 +17,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 
+interface BoxImage {
+  id: number;
+  imageKey: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  imageUrl: string;
+  isPrimary: boolean;
+  createdAt: string;
+}
+
 interface Box {
   id: string;
   boxId: string;
@@ -24,6 +35,7 @@ interface Box {
   location: string | null;
   hostId: number | null;
   pricePerNight: string | number;
+  images?: BoxImage[];
 }
 
 export default function BoxesPage() {
@@ -265,37 +277,69 @@ export default function BoxesPage() {
 
         {!loading && !error && validItems.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {validItems.map((box) => (
-              <Card key={`box-${box.boxId}`} className="flex flex-col">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Box {box.boxId}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Location:</span>
-                      <span className="text-sm font-medium">{box.location || '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Price per night:</span>
-                      <span className="text-sm font-medium">
-                        ${Number(box.pricePerNight || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="pt-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => setSelectedBox(box)}
-                      >
-                        Details
-                      </Button>
+            {validItems.map((box) => {
+              const primaryImage = box.images?.find(img => img.isPrimary) || box.images?.[0];
+              const hasImages = box.images && box.images.length > 0;
+              
+              return (
+                <Card 
+                  key={`box-${box.boxId}`} 
+                  className="flex flex-col overflow-hidden cursor-pointer hover:shadow-lg transition-shadow duration-200"
+                  onClick={() => setSelectedBox(box)}
+                >
+                  {/* Image Section */}
+                  <div className="relative h-48 bg-gray-100">
+                    {hasImages && primaryImage ? (
+                      <>
+                        <img
+                          src={`http://${primaryImage.imageUrl}`}
+                          alt={`Box ${box.boxId}`}
+                          className="w-full h-full object-cover rounded-t-lg"
+                          onError={(e) => {
+                            // Hide image if failed to load
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                        {box.images && box.images.length > 1 && (
+                          <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                            +{box.images.length - 1} more
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 rounded-t-lg">
+                        <div className="text-center">
+                          <div className="text-2xl mb-1">📦</div>
+                          <div className="text-sm">No Image</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="p-4 flex-1">
+                    <h3 className="text-lg font-semibold mb-3">Box {box.boxId}</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Location:</span>
+                        <span className="text-sm font-medium">{box.location || '-'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">Price per night:</span>
+                        <span className="text-sm font-medium">
+                          ${Number(box.pricePerNight || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      {hasImages && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Images:</span>
+                          <span className="text-sm font-medium">{box.images?.length || 0}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
 
@@ -455,15 +499,51 @@ export default function BoxesPage() {
         setSelectedBox(null);
         setEditingBox(null);
       }}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Box Details</DialogTitle>
+            <DialogTitle>Box {selectedBox?.boxId} Details</DialogTitle>
             <DialogDescription>
-              Edit box information
+              Edit box information and view images
             </DialogDescription>
           </DialogHeader>
           {editingBox && (
             <div className="grid gap-4 py-4">
+              {/* Box Images Display */}
+              {editingBox.images && editingBox.images.length > 0 && (
+                <div className="grid gap-2">
+                  <Label>Box Images ({editingBox.images.length})</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto">
+                    {editingBox.images
+                      .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0)) // Primary first
+                      .map((image) => (
+                        <div key={image.id} className="relative aspect-square">
+                          <img
+                            src={`http://${image.imageUrl}`}
+                            alt={image.fileName}
+                            className="w-full h-full object-cover rounded-lg border"
+                            onError={(e) => {
+                              // Show placeholder if image fails to load
+                              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlmYTJhOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+                            }}
+                          />
+                          {image.isPrimary && (
+                            <div className="absolute top-1 left-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                              Primary
+                            </div>
+                          )}
+                          <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                            {Math.round(image.fileSize / 1024)}KB
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Primary image is shown first and used as the main preview
+                  </div>
+                </div>
+              )}
+              
+              {/* Box Information Form */}
               <div className="grid gap-2">
                 <Label htmlFor="edit-boxId">Box ID</Label>
                 <Input
