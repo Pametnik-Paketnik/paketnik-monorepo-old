@@ -121,6 +121,8 @@ export default function ReservationsPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBoxAvailability, setSelectedBoxAvailability] = useState<BoxAvailability | null>(null);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Helper function to safely format price
   const formatPrice = (price: number | string | undefined): string => {
@@ -156,6 +158,7 @@ export default function ReservationsPage() {
   const fetchBoxAvailability = async (boxId: string) => {
     if (!token) return;
     
+    setIsLoadingAvailability(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes/${boxId}/availability`, {
         headers: {
@@ -172,6 +175,9 @@ export default function ReservationsPage() {
       setSelectedBoxAvailability(data);
     } catch (error) {
       console.error('Error fetching box availability:', error);
+      setSelectedBoxAvailability(null);
+    } finally {
+      setIsLoadingAvailability(false);
     }
   };
 
@@ -190,12 +196,7 @@ export default function ReservationsPage() {
     });
   };
 
-  const getDateClassName = (date: Date) => {
-    if (isDateUnavailable(date)) {
-      return 'bg-gray-200 text-gray-400 cursor-not-allowed hover:bg-gray-200 hover:text-gray-400';
-    }
-    return '';
-  };
+
 
   const getStatusIcon = (status: ReservationStatus) => {
     switch (status) {
@@ -464,153 +465,286 @@ export default function ReservationsPage() {
 
       {/* Add Reservation Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Add New Reservation</DialogTitle>
+            <DialogTitle>Create New Reservation</DialogTitle>
             <DialogDescription>
-              Fill in the details to add a new reservation
+              Select a box and pick your reservation dates
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="boxId">Box</Label>
+          
+          <div className="space-y-6">
+            {/* Step 1: Box Selection */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">1</div>
+                <Label className="text-base font-medium">Select Box</Label>
+              </div>
               <Select
                 value={newReservationData.boxId}
-                onValueChange={handleBoxChange}
+                onValueChange={(value) => {
+                  handleBoxChange(value);
+                  setShowDatePicker(true);
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a box" />
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a box to create reservation for..." />
                 </SelectTrigger>
                 <SelectContent>
                   {validBoxes.map((box) => (
                     <SelectItem key={box.boxId} value={box.boxId}>
-                      Box {box.boxId} - {box.location} (${box.pricePerNight}/night)
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium">Box {box.boxId}</span>
+                        <span className="text-muted-foreground ml-2">{box.location}</span>
+                        <span className="text-green-600 font-medium ml-2">${box.pricePerNight}/night</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="guestId">Guest ID</Label>
-              <Input
-                id="guestId"
-                value={newReservationData.guestId}
-                onChange={(e) => setNewReservationData(prev => ({ ...prev, guestId: e.target.value }))}
-                placeholder="Enter guest ID"
-                disabled={!newReservationData.boxId}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Check-in Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !newReservationData.checkinAt && "text-muted-foreground"
-                    )}
-                    disabled={!newReservationData.boxId}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {newReservationData.checkinAt ? (
-                      format(new Date(newReservationData.checkinAt), "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <div className="p-3 border-b">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <div className="w-3 h-3 rounded-sm bg-gray-200" />
-                      <span>Unavailable dates</span>
+
+            {/* Step 2: Date Selection */}
+            {(newReservationData.boxId && showDatePicker) && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">2</div>
+                  <Label className="text-base font-medium">Pick Dates</Label>
+                </div>
+                
+                {isLoadingAvailability && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground">Loading availability...</div>
                     </div>
                   </div>
-                  <CalendarComponent
-                    mode="single"
-                    selected={newReservationData.checkinAt ? new Date(newReservationData.checkinAt) : undefined}
-                    onSelect={(date: Date | undefined) => date && setNewReservationData(prev => ({ 
-                      ...prev, 
-                      checkinAt: date.toISOString() 
-                    }))}
-                    disabled={(date: Date) => isDateUnavailable(date)}
-                    className="rounded-md border"
-                    classNames={{
-                      day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day_today: "bg-accent text-accent-foreground",
-                      day_outside: "text-muted-foreground opacity-50",
-                      day_disabled: "text-muted-foreground opacity-50",
-                      day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                      day_hidden: "invisible",
-                      ...getDateClassName
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div className="grid gap-2">
-              <Label>Check-out Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !newReservationData.checkoutAt && "text-muted-foreground"
-                    )}
-                    disabled={!newReservationData.boxId || !newReservationData.checkinAt}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {newReservationData.checkoutAt ? (
-                      format(new Date(newReservationData.checkoutAt), "PPP")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <div className="p-3 border-b">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <div className="w-3 h-3 rounded-sm bg-gray-200" />
-                      <span>Unavailable dates</span>
+                )}
+
+                {!isLoadingAvailability && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Check-in Date */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Check-in Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal h-10",
+                              !newReservationData.checkinAt && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {newReservationData.checkinAt ? (
+                              format(new Date(newReservationData.checkinAt), "PPP")
+                            ) : (
+                              <span>Select check-in date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-3 border-b bg-muted/50">
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-3 h-3 rounded-sm bg-red-200 border border-red-300" />
+                              <span className="text-muted-foreground">Unavailable dates</span>
+                            </div>
+                          </div>
+                          <CalendarComponent
+                            mode="single"
+                            selected={newReservationData.checkinAt ? new Date(newReservationData.checkinAt) : undefined}
+                            onSelect={(date: Date | undefined) => {
+                              if (date) {
+                                setNewReservationData(prev => ({ 
+                                  ...prev, 
+                                  checkinAt: date.toISOString(),
+                                  checkoutAt: '' // Reset checkout when checkin changes
+                                }));
+                              }
+                            }}
+                            disabled={(date: Date) => {
+                              // Disable past dates
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              if (date < today) return true;
+                              
+                              // Disable unavailable dates
+                              return isDateUnavailable(date);
+                            }}
+                            className="rounded-md"
+                            classNames={{
+                              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                              month: "space-y-4",
+                              caption: "flex justify-center pt-1 relative items-center",
+                              caption_label: "text-sm font-medium",
+                              nav: "space-x-1 flex items-center",
+                              nav_button: cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-7 w-7 p-0"),
+                              nav_button_previous: "absolute left-1",
+                              nav_button_next: "absolute right-1",
+                              table: "w-full border-collapse space-y-1",
+                              head_row: "flex",
+                              head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+                              row: "flex w-full mt-2",
+                              cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                              day: cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-selected:opacity-100 h-9 w-9 p-0 font-normal aria-selected:bg-primary aria-selected:text-primary-foreground hover:bg-accent hover:text-accent-foreground"),
+                              day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                              day_today: "bg-accent text-accent-foreground",
+                              day_outside: "text-muted-foreground opacity-50",
+                              day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed bg-red-50 hover:bg-red-50",
+                              day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                              day_hidden: "invisible",
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Check-out Date */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Check-out Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal h-10",
+                              !newReservationData.checkoutAt && "text-muted-foreground"
+                            )}
+                            disabled={!newReservationData.checkinAt}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {newReservationData.checkoutAt ? (
+                              format(new Date(newReservationData.checkoutAt), "PPP")
+                            ) : (
+                              <span>Select check-out date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <div className="p-3 border-b bg-muted/50">
+                            <div className="flex items-center gap-2 text-sm">
+                              <div className="w-3 h-3 rounded-sm bg-red-200 border border-red-300" />
+                              <span className="text-muted-foreground">Unavailable dates</span>
+                            </div>
+                          </div>
+                          <CalendarComponent
+                            mode="single"
+                            selected={newReservationData.checkoutAt ? new Date(newReservationData.checkoutAt) : undefined}
+                            onSelect={(date: Date | undefined) => {
+                              if (date) {
+                                setNewReservationData(prev => ({ 
+                                  ...prev, 
+                                  checkoutAt: date.toISOString() 
+                                }));
+                              }
+                            }}
+                            disabled={(date: Date) => {
+                              if (!newReservationData.checkinAt) return true;
+                              
+                              const checkinDate = new Date(newReservationData.checkinAt);
+                              checkinDate.setHours(0, 0, 0, 0);
+                              
+                              // Must be after check-in date
+                              if (date <= checkinDate) return true;
+                              
+                              // Disable unavailable dates
+                              return isDateUnavailable(date);
+                            }}
+                            className="rounded-md"
+                            classNames={{
+                              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                              month: "space-y-4",
+                              caption: "flex justify-center pt-1 relative items-center",
+                              caption_label: "text-sm font-medium",
+                              nav: "space-x-1 flex items-center",
+                              nav_button: cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-7 w-7 p-0"),
+                              nav_button_previous: "absolute left-1",
+                              nav_button_next: "absolute right-1",
+                              table: "w-full border-collapse space-y-1",
+                              head_row: "flex",
+                              head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+                              row: "flex w-full mt-2",
+                              cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                              day: cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-selected:opacity-100 h-9 w-9 p-0 font-normal aria-selected:bg-primary aria-selected:text-primary-foreground hover:bg-accent hover:text-accent-foreground"),
+                              day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                              day_today: "bg-accent text-accent-foreground",
+                              day_outside: "text-muted-foreground opacity-50",
+                              day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed bg-red-50 hover:bg-red-50",
+                              day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                              day_hidden: "invisible",
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
-                  <CalendarComponent
-                    mode="single"
-                    selected={newReservationData.checkoutAt ? new Date(newReservationData.checkoutAt) : undefined}
-                    onSelect={(date: Date | undefined) => date && setNewReservationData(prev => ({ 
-                      ...prev, 
-                      checkoutAt: date.toISOString() 
-                    }))}
-                    disabled={(date: Date) => {
-                      if (!newReservationData.checkinAt) return true;
-                      const checkinDate = new Date(newReservationData.checkinAt);
-                      return date <= checkinDate || isDateUnavailable(date);
-                    }}
-                    className="rounded-md border"
-                    classNames={{
-                      day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                      day_today: "bg-accent text-accent-foreground",
-                      day_outside: "text-muted-foreground opacity-50",
-                      day_disabled: "text-muted-foreground opacity-50",
-                      day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                      day_hidden: "invisible",
-                      ...getDateClassName
-                    }}
-                    initialFocus
+                )}
+              </div>
+            )}
+
+            {/* Step 3: Guest Information */}
+            {newReservationData.checkinAt && newReservationData.checkoutAt && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">3</div>
+                  <Label className="text-base font-medium">Guest Information</Label>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="guestId" className="text-sm">Guest ID</Label>
+                  <Input
+                    id="guestId"
+                    value={newReservationData.guestId}
+                    onChange={(e) => setNewReservationData(prev => ({ ...prev, guestId: e.target.value }))}
+                    placeholder="Enter the guest's user ID"
+                    className="max-w-md"
                   />
-                </PopoverContent>
-              </Popover>
-            </div>
+                  <p className="text-xs text-muted-foreground">
+                    The numeric ID of the guest user who will use this reservation
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Booking Summary */}
+            {newReservationData.boxId && newReservationData.checkinAt && newReservationData.checkoutAt && (
+              <div className="p-4 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium mb-3">Reservation Summary</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Box:</span>
+                    <div className="font-medium">{newReservationData.boxId}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Dates:</span>
+                    <div className="font-medium">
+                      {format(new Date(newReservationData.checkinAt), "MMM d")} - {format(new Date(newReservationData.checkoutAt), "MMM d, yyyy")}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Nights:</span>
+                    <div className="font-medium">
+                      {Math.ceil((new Date(newReservationData.checkoutAt).getTime() - new Date(newReservationData.checkinAt).getTime()) / (1000 * 60 * 60 * 24))}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Total Price:</span>
+                    <div className="font-medium text-green-600">
+                      ${(validBoxes.find(b => b.boxId === newReservationData.boxId)?.pricePerNight || 0) * Math.ceil((new Date(newReservationData.checkoutAt).getTime() - new Date(newReservationData.checkinAt).getTime()) / (1000 * 60 * 60 * 24))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button 
               variant="outline" 
               onClick={() => {
                 setIsAddDialogOpen(false);
                 setSelectedBoxAvailability(null);
+                setShowDatePicker(false);
                 setNewReservationData({
                   boxId: '',
                   guestId: '',
@@ -620,14 +754,16 @@ export default function ReservationsPage() {
                 });
               }}
               disabled={isSubmitting}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button 
               onClick={handleAddReservation}
               disabled={isSubmitting || !newReservationData.boxId || !newReservationData.guestId || !newReservationData.checkinAt || !newReservationData.checkoutAt}
+              className="w-full sm:w-auto"
             >
-              {isSubmitting ? 'Adding...' : 'Add Reservation'}
+              {isSubmitting ? 'Creating Reservation...' : 'Create Reservation'}
             </Button>
           </DialogFooter>
         </DialogContent>
