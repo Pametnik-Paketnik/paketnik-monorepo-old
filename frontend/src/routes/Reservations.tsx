@@ -23,12 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import type { DateRange } from "react-day-picker";
 
 // User type enum to match backend
 enum UserType {
@@ -123,6 +124,7 @@ export default function ReservationsPage() {
   const [selectedBoxAvailability, setSelectedBoxAvailability] = useState<BoxAvailability | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   // Helper function to safely format price
   const formatPrice = (price: number | string | undefined): string => {
@@ -185,18 +187,6 @@ export default function ReservationsPage() {
     setNewReservationData(prev => ({ ...prev, boxId }));
     fetchBoxAvailability(boxId);
   };
-
-  const isDateUnavailable = (date: Date) => {
-    if (!selectedBoxAvailability) return false;
-
-    return selectedBoxAvailability.unavailableDates.some(({ startDate, endDate }) => {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      return date >= start && date <= end;
-    });
-  };
-
-
 
   const getStatusIcon = (status: ReservationStatus) => {
     switch (status) {
@@ -289,6 +279,57 @@ export default function ReservationsPage() {
       // TODO: Show error message to user
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const isDateUnavailable = (date: Date) => {
+    if (!selectedBoxAvailability) return false;
+
+    return selectedBoxAvailability.unavailableDates.some(({ startDate, endDate }) => {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      return date >= start && date <= end;
+    });
+  };
+
+  const findOverlappingDates = (from: Date, to: Date): { startDate: string; endDate: string } | null => {
+    if (!selectedBoxAvailability) return null;
+
+    const overlapping = selectedBoxAvailability.unavailableDates.find(({ startDate, endDate }) => {
+      const unavailableStart = new Date(startDate);
+      const unavailableEnd = new Date(endDate);
+      return from <= unavailableEnd && unavailableStart <= to;
+    });
+
+    return overlapping || null;
+  };
+
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    if (range?.from && range.from instanceof Date) {
+      // If we have both from and to dates, check if the range is valid
+      if (range.to && range.to instanceof Date) {
+        // Check for overlapping dates
+        const overlapping = findOverlappingDates(range.from, range.to);
+        if (overlapping) {
+          const formatDate = (dateStr: string) => format(new Date(dateStr), "MMM d, yyyy");
+          // For now, we'll use a simple alert until we add the toast component
+          alert(`Your selected dates overlap with an existing reservation from ${formatDate(overlapping.startDate)} to ${formatDate(overlapping.endDate)}. Please try different dates.`);
+          return;
+        }
+      }
+      
+      setNewReservationData(prev => ({
+        ...prev,
+        checkinAt: range.from.toISOString(),
+        checkoutAt: range.to ? range.to.toISOString() : ''
+      }));
+    } else {
+      setNewReservationData(prev => ({
+        ...prev,
+        checkinAt: '',
+        checkoutAt: ''
+      }));
     }
   };
 
@@ -521,163 +562,90 @@ export default function ReservationsPage() {
                 )}
 
                 {!isLoadingAvailability && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Check-in Date */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Check-in Date</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal h-10",
-                              !newReservationData.checkinAt && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {newReservationData.checkinAt ? (
-                              format(new Date(newReservationData.checkinAt), "PPP")
+                  <div className="space-y-3">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dateRange && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (
+                            dateRange.to ? (
+                              <>
+                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                {format(dateRange.to, "LLL dd, y")}
+                              </>
                             ) : (
-                              <span>Select check-in date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <div className="p-3 border-b bg-muted/50">
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="w-3 h-3 rounded-sm bg-red-200 border border-red-300" />
-                              <span className="text-muted-foreground">Unavailable dates</span>
-                            </div>
+                              format(dateRange.from, "LLL dd, y")
+                            )
+                          ) : (
+                            <span>Select your stay dates</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="p-3 border-b bg-muted/50">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-3 h-3 rounded-sm bg-red-500/90 border border-red-600" />
+                            <span className="text-muted-foreground">Unavailable dates</span>
                           </div>
-                          <CalendarComponent
-                            mode="single"
-                            selected={newReservationData.checkinAt ? new Date(newReservationData.checkinAt) : undefined}
-                            onSelect={(date: Date | undefined) => {
-                              if (date) {
-                                setNewReservationData(prev => ({ 
-                                  ...prev, 
-                                  checkinAt: date.toISOString(),
-                                  checkoutAt: '' // Reset checkout when checkin changes
-                                }));
-                              }
-                            }}
-                            disabled={(date: Date) => {
-                              // Disable past dates
-                              const today = new Date();
-                              today.setHours(0, 0, 0, 0);
-                              if (date < today) return true;
-                              
-                              // Disable unavailable dates
-                              return isDateUnavailable(date);
-                            }}
-                            className="rounded-md"
-                            classNames={{
-                              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                              month: "space-y-4",
-                              caption: "flex justify-center pt-1 relative items-center",
-                              caption_label: "text-sm font-medium",
-                              nav: "space-x-1 flex items-center",
-                              nav_button: cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-7 w-7 p-0"),
-                              nav_button_previous: "absolute left-1",
-                              nav_button_next: "absolute right-1",
-                              table: "w-full border-collapse space-y-1",
-                              head_row: "flex",
-                              head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-                              row: "flex w-full mt-2",
-                              cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                              day: cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-selected:opacity-100 h-9 w-9 p-0 font-normal aria-selected:bg-primary aria-selected:text-primary-foreground hover:bg-accent hover:text-accent-foreground"),
-                              day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                              day_today: "bg-accent text-accent-foreground",
-                              day_outside: "text-muted-foreground opacity-50",
-                              day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed bg-red-50 hover:bg-red-50",
-                              day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                              day_hidden: "invisible",
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                        </div>
+                        <CalendarPicker
+                          initialFocus
+                          mode="range"
+                          defaultMonth={dateRange?.from}
+                          selected={dateRange}
+                          onSelect={(range: DateRange | undefined) => handleDateRangeChange(range)}
+                          numberOfMonths={2}
+                          disabled={(date: Date) => {
+                            // Disable past dates
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            if (date < today) return true;
+                            
+                            // Disable unavailable dates
+                            return isDateUnavailable(date);
+                          }}
+                          className="rounded-md"
+                          classNames={{
+                            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                            month: "space-y-4",
+                            caption: "flex justify-center pt-1 relative items-center",
+                            caption_label: "text-sm font-medium",
+                            nav: "space-x-1 flex items-center",
+                            nav_button: cn(
+                              "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-7 w-7 p-0"
+                            ),
+                            nav_button_previous: "absolute left-1",
+                            nav_button_next: "absolute right-1",
+                            table: "w-full border-collapse space-y-1",
+                            head_row: "flex",
+                            head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+                            row: "flex w-full mt-2",
+                            cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+                            day: cn(
+                              "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-selected:opacity-100 h-9 w-9 p-0 font-normal aria-selected:bg-primary aria-selected:text-primary-foreground hover:bg-accent hover:text-accent-foreground"
+                            ),
+                            day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                            day_today: "bg-accent text-accent-foreground",
+                            day_outside: "text-muted-foreground opacity-50",
+                            day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed bg-red-100 hover:bg-red-100 text-red-900 font-medium",
+                            day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                            day_hidden: "invisible",
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
 
-                    {/* Check-out Date */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">Check-out Date</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full justify-start text-left font-normal h-10",
-                              !newReservationData.checkoutAt && "text-muted-foreground"
-                            )}
-                            disabled={!newReservationData.checkinAt}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {newReservationData.checkoutAt ? (
-                              format(new Date(newReservationData.checkoutAt), "PPP")
-                            ) : (
-                              <span>Select check-out date</span>
-                            )}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <div className="p-3 border-b bg-muted/50">
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="w-3 h-3 rounded-sm bg-red-200 border border-red-300" />
-                              <span className="text-muted-foreground">Unavailable dates</span>
-                            </div>
-                          </div>
-                          <CalendarComponent
-                            mode="single"
-                            selected={newReservationData.checkoutAt ? new Date(newReservationData.checkoutAt) : undefined}
-                            onSelect={(date: Date | undefined) => {
-                              if (date) {
-                                setNewReservationData(prev => ({ 
-                                  ...prev, 
-                                  checkoutAt: date.toISOString() 
-                                }));
-                              }
-                            }}
-                            disabled={(date: Date) => {
-                              if (!newReservationData.checkinAt) return true;
-                              
-                              const checkinDate = new Date(newReservationData.checkinAt);
-                              checkinDate.setHours(0, 0, 0, 0);
-                              
-                              // Must be after check-in date
-                              if (date <= checkinDate) return true;
-                              
-                              // Disable unavailable dates
-                              return isDateUnavailable(date);
-                            }}
-                            className="rounded-md"
-                            classNames={{
-                              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                              month: "space-y-4",
-                              caption: "flex justify-center pt-1 relative items-center",
-                              caption_label: "text-sm font-medium",
-                              nav: "space-x-1 flex items-center",
-                              nav_button: cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-7 w-7 p-0"),
-                              nav_button_previous: "absolute left-1",
-                              nav_button_next: "absolute right-1",
-                              table: "w-full border-collapse space-y-1",
-                              head_row: "flex",
-                              head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-                              row: "flex w-full mt-2",
-                              cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                              day: cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-selected:opacity-100 h-9 w-9 p-0 font-normal aria-selected:bg-primary aria-selected:text-primary-foreground hover:bg-accent hover:text-accent-foreground"),
-                              day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                              day_today: "bg-accent text-accent-foreground",
-                              day_outside: "text-muted-foreground opacity-50",
-                              day_disabled: "text-muted-foreground opacity-50 cursor-not-allowed bg-red-50 hover:bg-red-50",
-                              day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                              day_hidden: "invisible",
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                    {dateRange?.from && dateRange?.to && (
+                      <div className="text-sm text-muted-foreground">
+                        {Math.ceil((dateRange.to.getTime() - dateRange.from.getTime()) / (1000 * 60 * 60 * 24))} night stay
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
