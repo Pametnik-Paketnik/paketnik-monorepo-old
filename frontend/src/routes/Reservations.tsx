@@ -107,7 +107,7 @@ export default function ReservationsPage() {
     
     setIsLoadingAvailability(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/boxes/${boxId}/availability`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes/${boxId}/availability`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -173,7 +173,7 @@ export default function ReservationsPage() {
 
       console.log('Sending reservation request with body:', requestBody);
 
-      const response = await fetch(`http://localhost:3000/api/reservations`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/reservations`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

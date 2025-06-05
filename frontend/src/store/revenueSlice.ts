@@ -12,7 +12,7 @@ export const fetchRevenue = createAsyncThunk('revenue/fetchRevenue', async (_, {
       throw new Error('No host ID available');
     }
     
-    const res = await fetch(`http://localhost:3000/api/boxes/host/${hostId}/revenue`, {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/boxes/host/${hostId}/revenue`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',

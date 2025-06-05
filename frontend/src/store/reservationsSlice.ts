@@ -14,7 +14,7 @@ export const fetchReservations = createAsyncThunk('reservations/fetchReservation
       throw new Error('No host ID available');
     }
     
-    const url = `http://localhost:3000/api/reservations/host/${hostId}`;
+    const url = `${import.meta.env.VITE_API_URL}/reservations/host/${hostId}`;
     console.log('Fetching from URL:', url);
     
     const res = await fetch(url, {

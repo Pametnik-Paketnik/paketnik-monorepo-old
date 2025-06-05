@@ -43,8 +43,8 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
 
     // Determine URL and method
     const url = isLogin
-      ? "http://localhost:3000/api/auth/login"
-      : "http://localhost:3000/api/auth/register";
+      ? `${import.meta.env.VITE_API_URL}/auth/login`
+      : `${import.meta.env.VITE_API_URL}/auth/register`;
 
     try {
       const res = await fetch(url, {

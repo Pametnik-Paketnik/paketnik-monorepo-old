@@ -69,7 +69,7 @@ export default function BoxesPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:3000/api/boxes', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -111,7 +111,7 @@ export default function BoxesPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`http://localhost:3000/api/boxes/${editingBox.boxId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes/${editingBox.boxId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

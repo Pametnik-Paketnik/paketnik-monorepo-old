@@ -23,7 +23,7 @@ export const fetchBoxOpeningHistory = createAsyncThunk(
         throw new Error('No user ID available');
       }
 
-      const response = await fetch(`http://localhost:3000/api/boxes/opening-history/user/${userId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes/opening-history/user/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
