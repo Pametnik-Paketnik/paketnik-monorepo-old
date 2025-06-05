@@ -1,27 +1,20 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { RootState } from './index';
+import { apiGet } from '@/lib/api';
 
 export const fetchBoxes = createAsyncThunk('boxes/fetchBoxes', async (_, { rejectWithValue, getState }) => {
   try {
     const state = getState() as RootState;
-    const token = state.auth.accessToken;
     const hostId = state.auth.user?.id;
 
-    console.log('Fetching boxes with:', { token: !!token, hostId });
+    console.log('Fetching boxes with hostId:', hostId);
 
     if (!hostId) {
       console.error('No host ID available');
       throw new Error('No host ID available');
     }
     
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/boxes/host/${hostId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // console.log('API Response status:', res.status);
+    const res = await apiGet(`${import.meta.env.VITE_API_URL}/boxes/host/${hostId}`);
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -30,11 +23,10 @@ export const fetchBoxes = createAsyncThunk('boxes/fetchBoxes', async (_, { rejec
     }
 
     const data = await res.json();
-    // console.log('Received boxes data:', data);
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error in fetchBoxes:', err);
-    return rejectWithValue(err.message);
+    return rejectWithValue(err instanceof Error ? err.message : 'Unknown error');
   }
 });
 

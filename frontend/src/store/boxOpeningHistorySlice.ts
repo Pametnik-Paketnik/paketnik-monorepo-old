@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { RootState } from './index';
+import { apiGet } from '@/lib/api';
 
 interface BoxOpeningHistory {
   id: string;
@@ -16,19 +17,13 @@ export const fetchBoxOpeningHistory = createAsyncThunk(
   async (_, { rejectWithValue, getState }) => {
     try {
       const state = getState() as RootState;
-      const token = state.auth.accessToken;
       const userId = state.auth.user?.id;
 
       if (!userId) {
         throw new Error('No user ID available');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes/opening-history/user/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiGet(`${import.meta.env.VITE_API_URL}/boxes/opening-history/user/${userId}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -37,8 +32,8 @@ export const fetchBoxOpeningHistory = createAsyncThunk(
 
       const data = await response.json();
       return data;
-    } catch (err: any) {
-      return rejectWithValue(err.message);
+    } catch (err: unknown) {
+      return rejectWithValue(err instanceof Error ? err.message : 'Unknown error');
     }
   }
 );

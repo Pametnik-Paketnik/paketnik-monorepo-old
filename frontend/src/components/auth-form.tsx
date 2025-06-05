@@ -82,8 +82,8 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
       } else {
         throw new Error(data.message || "Authentication failed");
       }
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }

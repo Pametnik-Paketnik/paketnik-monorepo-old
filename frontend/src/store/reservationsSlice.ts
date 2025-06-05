@@ -1,13 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { RootState } from './index';
+import { apiGet } from '@/lib/api';
 
 export const fetchReservations = createAsyncThunk('reservations/fetchReservations', async (_, { rejectWithValue, getState }) => {
   try {
     const state = getState() as RootState;
-    const token = state.auth.accessToken;
     const hostId = state.auth.user?.id;
 
-    console.log('Fetching reservations with:', { token: !!token, hostId });
+    console.log('Fetching reservations with hostId:', hostId);
 
     if (!hostId) {
       console.error('No host ID available');
@@ -17,12 +17,7 @@ export const fetchReservations = createAsyncThunk('reservations/fetchReservation
     const url = `${import.meta.env.VITE_API_URL}/reservations/host/${hostId}`;
     console.log('Fetching from URL:', url);
     
-    const res = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const res = await apiGet(url);
     
     console.log('Response status:', res.status);
     
@@ -35,9 +30,9 @@ export const fetchReservations = createAsyncThunk('reservations/fetchReservation
     const data = await res.json();
     console.log('Received reservations data:', data);
     return data;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Error in fetchReservations:', err);
-    return rejectWithValue(err.message);
+    return rejectWithValue(err instanceof Error ? err.message : 'Unknown error');
   }
 });
 

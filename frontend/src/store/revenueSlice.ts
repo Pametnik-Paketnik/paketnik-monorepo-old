@@ -1,10 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { RootState } from './index';
+import { apiGet } from '@/lib/api';
 
 export const fetchRevenue = createAsyncThunk('revenue/fetchRevenue', async (_, { rejectWithValue, getState }) => {
   try {
     const state = getState() as RootState;
-    const token = state.auth.accessToken;
     const hostId = state.auth.user?.id;
 
     if (!hostId) {
@@ -12,16 +12,11 @@ export const fetchRevenue = createAsyncThunk('revenue/fetchRevenue', async (_, {
       throw new Error('No host ID available');
     }
     
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/boxes/host/${hostId}/revenue`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const res = await apiGet(`${import.meta.env.VITE_API_URL}/boxes/host/${hostId}/revenue`);
     if (!res.ok) throw new Error('Failed to fetch revenue');
     return await res.json();
-  } catch (err: any) {
-    return rejectWithValue(err.message);
+  } catch (err: unknown) {
+    return rejectWithValue(err instanceof Error ? err.message : 'Unknown error');
   }
 });
 

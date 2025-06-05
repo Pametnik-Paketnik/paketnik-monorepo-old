@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchBoxes } from '@/store/boxesSlice';
 import type { RootState, AppDispatch } from '@/store';
+import { apiPost, apiPatch } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,17 +19,17 @@ import { Plus } from "lucide-react";
 
 interface Box {
   id: string;
+  boxId: string;
   name: string | null;
+  location: string | null;
   hostId: number | null;
   pricePerNight: string | number;
-  [key: string]: any; 
 }
 
 export default function BoxesPage() {
   const dispatch = useDispatch<AppDispatch>();
   const { items, loading, error } = useSelector((state: RootState) => state.boxes);
   const user = useSelector((state: RootState) => state.auth.user);
-  const token = useSelector((state: RootState) => state.auth.accessToken);
   const [selectedBox, setSelectedBox] = useState<Box | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newBoxData, setNewBoxData] = useState({
@@ -55,25 +56,17 @@ export default function BoxesPage() {
   });
 
   const handleAddBox = async () => {
-    if (!user?.id || !token) {
-      console.error('No user ID or token available');
+    if (!user?.id) {
+      console.error('No user ID available');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'accept': 'application/json'
-        },
-        body: JSON.stringify({
-          ...newBoxData,
-          ownerId: user.id,
-          pricePerNight: Number(newBoxData.pricePerNight)
-        })
+      const response = await apiPost(`${import.meta.env.VITE_API_URL}/boxes`, {
+        ...newBoxData,
+        ownerId: user.id,
+        pricePerNight: Number(newBoxData.pricePerNight)
       });
 
       if (!response.ok) {
@@ -97,25 +90,17 @@ export default function BoxesPage() {
   };
 
   const handleUpdateBox = async () => {
-    if (!user?.id || !token || !editingBox) {
-      console.error('No user ID, token, or box data available');
+    if (!user?.id || !editingBox) {
+      console.error('No user ID or box data available');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes/${editingBox.boxId}`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'accept': 'application/json'
-        },
-        body: JSON.stringify({
-          boxId: editingBox.boxId,
-          location: editingBox.location,
-          pricePerNight: editingBox.pricePerNight ? Number(editingBox.pricePerNight) : null
-        })
+      const response = await apiPatch(`${import.meta.env.VITE_API_URL}/boxes/${editingBox.boxId}`, {
+        boxId: editingBox.boxId,
+        location: editingBox.location,
+        pricePerNight: editingBox.pricePerNight ? Number(editingBox.pricePerNight) : null
       });
 
       if (!response.ok) {
