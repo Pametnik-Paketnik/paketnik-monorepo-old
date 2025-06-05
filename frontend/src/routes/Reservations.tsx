@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, User, MapPin, Calendar, DollarSign, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Plus, User, MapPin, Calendar, DollarSign, Clock, CheckCircle, XCircle, AlertCircle, Filter } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -43,6 +43,15 @@ enum ReservationStatus {
   CHECKED_IN = 'CHECKED_IN',
   CHECKED_OUT = 'CHECKED_OUT',
   CANCELLED = 'CANCELLED',
+}
+
+// Filter types
+type StatusFilter = 'ALL' | 'UPCOMMING' | 'CHECKIN' | 'CHECKOUT' | 'CANCELED';
+
+interface FilterState {
+  status: StatusFilter;
+  boxId: string;
+  dateRange: DateRange | undefined;
 }
 
 interface User {
@@ -126,11 +135,109 @@ export default function ReservationsPage() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
+  // Filter state
+  const [filters, setFilters] = useState<FilterState>({
+    status: 'ALL',
+    boxId: '',
+    dateRange: undefined
+  });
+  const [showFilters, setShowFilters] = useState(false);
+
   // Helper function to safely format price
   const formatPrice = (price: number | string | undefined): string => {
     if (!price) return '0.00';
     const numPrice = typeof price === 'string' ? parseFloat(price) : price;
     return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2);
+  };
+
+  // Helper function to map reservation status to filter status
+  const getFilterStatus = (status: ReservationStatus): StatusFilter => {
+    switch (status) {
+      case ReservationStatus.PENDING:
+        return 'UPCOMMING';
+      case ReservationStatus.CHECKED_IN:
+        return 'CHECKIN';
+      case ReservationStatus.CHECKED_OUT:
+        return 'CHECKOUT';
+      case ReservationStatus.CANCELLED:
+        return 'CANCELED';
+      default:
+        return 'ALL';
+    }
+  };
+
+  // Helper function to get filter display name
+  const getFilterDisplayName = (filter: StatusFilter): string => {
+    switch (filter) {
+      case 'UPCOMMING':
+        return 'Upcoming';
+      case 'CHECKIN':
+        return 'Active';
+      case 'CHECKOUT':
+        return 'Past';
+      case 'CANCELED':
+        return 'Canceled';
+      default:
+        return 'All';
+    }
+  };
+
+  // Filter reservations based on current filters
+  const applyFilters = (reservations: Reservation[]): Reservation[] => {
+    return reservations.filter((reservation) => {
+      // Status filter
+      if (filters.status !== 'ALL' && getFilterStatus(reservation.status) !== filters.status) {
+        return false;
+      }
+
+      // Box filter
+      if (filters.boxId && reservation.box.boxId !== filters.boxId) {
+        return false;
+      }
+
+      // Date range filter
+      if (filters.dateRange?.from || filters.dateRange?.to) {
+        const checkinDate = new Date(reservation.checkinAt);
+        const checkoutDate = new Date(reservation.checkoutAt);
+        
+        if (filters.dateRange.from && checkoutDate < filters.dateRange.from) {
+          return false;
+        }
+        
+        if (filters.dateRange.to && checkinDate > filters.dateRange.to) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilters({
+      status: 'ALL',
+      boxId: '',
+      dateRange: undefined
+    });
+  };
+
+  // Get count for each status
+  const getStatusCounts = (reservations: Reservation[]) => {
+    const counts = {
+      ALL: reservations.length,
+      UPCOMMING: 0,
+      CHECKIN: 0,
+      CHECKOUT: 0,
+      CANCELED: 0
+    };
+
+    reservations.forEach((reservation) => {
+      const filterStatus = getFilterStatus(reservation.status);
+      counts[filterStatus]++;
+    });
+
+    return counts;
   };
 
   useEffect(() => {
@@ -150,7 +257,10 @@ export default function ReservationsPage() {
     return diffA - diffB;
   });
 
-  const totalReservations = validItems.length;
+  // Apply filters to get filtered reservations
+  const filteredReservations = applyFilters(validItems);
+  const statusCounts = getStatusCounts(validItems);
+  const totalReservations = filteredReservations.length;
 
   const validBoxes = (boxes as SimpleBox[]).filter((item) => {
     const hasId = item && typeof item.boxId === 'string' && item.boxId.length > 0;
@@ -321,7 +431,7 @@ export default function ReservationsPage() {
       
       setNewReservationData(prev => ({
         ...prev,
-        checkinAt: range.from.toISOString(),
+        checkinAt: range.from!.toISOString(),
         checkoutAt: range.to ? range.to.toISOString() : ''
       }));
     } else {
@@ -336,19 +446,142 @@ export default function ReservationsPage() {
   return (
     <div key="page-container" className="@container/main flex flex-1 flex-col gap-2 px-4 md:px-6 lg:px-8">
       <div key="content-container" className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">Reservations</h1>
-            <p className="text-sm text-muted-foreground">Total Reservations: {totalReservations}</p>
+            <p className="text-sm text-muted-foreground">
+              Showing {totalReservations} of {validItems.length} reservations
+            </p>
           </div>
-          <Button 
-            onClick={() => setIsAddDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add Reservation
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+              {(filters.status !== 'ALL' || filters.boxId || filters.dateRange) && (
+                <Badge variant="secondary" className="ml-1">
+                  Active
+                </Badge>
+              )}
+            </Button>
+            <Button 
+              onClick={() => setIsAddDialogOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Reservation
+            </Button>
+          </div>
         </div>
+
+        {/* Filters Section */}
+        {showFilters && (
+          <Card className="p-6">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Filter Reservations</h3>
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  Clear All
+                </Button>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Status</Label>
+                <div className="flex flex-wrap gap-2">
+                  {(['ALL', 'UPCOMMING', 'CHECKIN', 'CHECKOUT', 'CANCELED'] as StatusFilter[]).map((status) => (
+                    <Button
+                      key={status}
+                      variant={filters.status === status ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFilters(prev => ({ ...prev, status }))}
+                      className="flex items-center gap-2"
+                    >
+                      {status !== 'ALL' && getStatusIcon(
+                        status === 'UPCOMMING' ? ReservationStatus.PENDING :
+                        status === 'CHECKIN' ? ReservationStatus.CHECKED_IN :
+                        status === 'CHECKOUT' ? ReservationStatus.CHECKED_OUT :
+                        ReservationStatus.CANCELLED
+                      )}
+                      {getFilterDisplayName(status)}
+                      <Badge variant="secondary" className="ml-1">
+                        {statusCounts[status]}
+                      </Badge>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+                             {/* Box Filter */}
+               <div className="space-y-3">
+                 <Label className="text-base font-medium">Box</Label>
+                 <Select
+                   value={filters.boxId || "all"}
+                   onValueChange={(value) => setFilters(prev => ({ ...prev, boxId: value === "all" ? "" : value }))}
+                 >
+                   <SelectTrigger className="w-full max-w-md">
+                     <SelectValue placeholder="All boxes" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="all">All boxes</SelectItem>
+                     {validBoxes.map((box) => (
+                       <SelectItem key={box.boxId} value={box.boxId}>
+                         <div className="flex items-center justify-between w-full">
+                           <span className="font-medium">Box {box.boxId}</span>
+                           <span className="text-muted-foreground ml-2">{box.location}</span>
+                         </div>
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </div>
+
+              {/* Date Range Filter */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Date Range</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full max-w-md justify-start text-left font-normal",
+                        !filters.dateRange && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateRange?.from ? (
+                        filters.dateRange.to ? (
+                          <>
+                            {format(filters.dateRange.from, "LLL dd, y")} -{" "}
+                            {format(filters.dateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          format(filters.dateRange.from, "LLL dd, y")
+                        )
+                      ) : (
+                        <span>Filter by date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarPicker
+                      initialFocus
+                      mode="range"
+                      defaultMonth={filters.dateRange?.from}
+                      selected={filters.dateRange}
+                      onSelect={(range) => setFilters(prev => ({ ...prev, dateRange: range }))}
+                      numberOfMonths={2}
+                      className="rounded-md"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {loading && (
           <div className="flex items-center justify-center py-8">
@@ -368,16 +601,16 @@ export default function ReservationsPage() {
           </div>
         )}
 
-        {!loading && !error && validItems.length > 0 && (
+        {!loading && !error && filteredReservations.length > 0 && (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {validItems.map((reservation) => (
+            {filteredReservations.map((reservation) => (
               <Card key={`reservation-${reservation.id}`} className="flex flex-col hover:shadow-md transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">Reservation #{reservation.id}</CardTitle>
                     <Badge className={`flex items-center gap-1 ${getStatusColor(reservation.status)}`}>
                       {getStatusIcon(reservation.status)}
-                      {reservation.status}
+                      {getFilterDisplayName(getFilterStatus(reservation.status))}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -460,23 +693,23 @@ export default function ReservationsPage() {
                     </div>
                   </div>
 
-                                     {/* Price Information */}
-                   {reservation.totalPrice && (
-                     <div className="space-y-2">
-                       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                         <DollarSign className="h-4 w-4" />
-                         Payment
-                       </div>
-                       <div className="ml-6">
-                         <div className="flex justify-between">
-                           <span className="text-sm text-muted-foreground">Total Price:</span>
-                           <span className="text-sm font-medium text-green-600">
-                             ${formatPrice(reservation.totalPrice)}
-                           </span>
-                         </div>
-                       </div>
-                     </div>
-                   )}
+                  {/* Price Information */}
+                  {reservation.totalPrice && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <DollarSign className="h-4 w-4" />
+                        Payment
+                      </div>
+                      <div className="ml-6">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Total Price:</span>
+                          <span className="text-sm font-medium text-green-600">
+                            ${formatPrice(reservation.totalPrice)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="pt-2">
                     <Button 
@@ -491,6 +724,18 @@ export default function ReservationsPage() {
                 </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {!loading && !error && filteredReservations.length === 0 && validItems.length > 0 && (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="text-lg font-medium mb-2">No reservations match your filters</div>
+              <div className="text-sm text-muted-foreground mb-4">Try adjusting your filter criteria</div>
+              <Button variant="outline" onClick={clearFilters}>
+                Clear Filters
+              </Button>
+            </div>
           </div>
         )}
 
