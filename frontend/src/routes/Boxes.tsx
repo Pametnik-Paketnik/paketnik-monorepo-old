@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchBoxes } from '@/store/boxesSlice';
 import type { RootState, AppDispatch } from '@/store';
-import { apiPost, apiPatch, apiPostFormData } from '@/lib/api';
+import { apiPost, apiPatch, apiPostFormData, apiDelete } from '@/lib/api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,6 +55,9 @@ export default function BoxesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingBox, setEditingBox] = useState<Box | null>(null);
   const [addBoxError, setAddBoxError] = useState<string | null>(null);
+  const [newEditImages, setNewEditImages] = useState<File[]>([]);
+  const [newEditPreviews, setNewEditPreviews] = useState<string[]>([]);
+  const [imagesToDelete, setImagesToDelete] = useState<number[]>([]);
 
   useEffect(() => {
     dispatch(fetchBoxes());
@@ -221,8 +224,8 @@ export default function BoxesPage() {
 
     setIsSubmitting(true);
     try {
+      // Update box basic information
       const response = await apiPatch(`${import.meta.env.VITE_API_URL}/boxes/${editingBox.boxId}`, {
-        boxId: editingBox.boxId,
         location: editingBox.location,
         pricePerNight: editingBox.pricePerNight ? Number(editingBox.pricePerNight) : null
       });
@@ -231,12 +234,76 @@ export default function BoxesPage() {
         throw new Error('Failed to update box');
       }
 
+      // Handle image deletions (if any)
+      for (const imageId of imagesToDelete) {
+        try {
+          const deleteResponse = await apiDelete(`${import.meta.env.VITE_API_URL}/boxes/${editingBox.boxId}/images/${imageId}`);
+          if (!deleteResponse.ok) {
+            console.warn(`Failed to delete image ${imageId}`);
+          }
+        } catch (error) {
+          console.warn(`Error deleting image ${imageId}:`, error);
+        }
+      }
+
+      // Handle new image uploads (if any) - upload one by one
+      if (newEditImages.length > 0) {
+        for (let i = 0; i < newEditImages.length; i++) {
+          try {
+            const formData = new FormData();
+            formData.append('image', newEditImages[i]); // Note: 'image' not 'images'
+            
+            const uploadResponse = await apiPostFormData(`${import.meta.env.VITE_API_URL}/boxes/${editingBox.boxId}/images`, formData);
+            if (!uploadResponse.ok) {
+              console.warn(`Failed to upload image ${i + 1}`);
+            }
+          } catch (error) {
+            console.warn(`Error uploading image ${i + 1}:`, error);
+          }
+        }
+      }
+
+      // Refresh the boxes list
+      dispatch(fetchBoxes());
+      setSelectedBox(null);
+      setEditingBox(null);
+      // Clean up edit image state
+      setNewEditImages([]);
+      newEditPreviews.forEach(url => URL.revokeObjectURL(url));
+      setNewEditPreviews([]);
+      setImagesToDelete([]);
+    } catch (error) {
+      console.error('Error updating box:', error);
+      // TODO: Show error message to user
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteBox = async () => {
+    if (!editingBox) {
+      console.error('No box data available');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete Box ${editingBox.boxId}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await apiDelete(`${import.meta.env.VITE_API_URL}/boxes/${editingBox.boxId}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to delete box');
+      }
+
       // Refresh the boxes list
       dispatch(fetchBoxes());
       setSelectedBox(null);
       setEditingBox(null);
     } catch (error) {
-      console.error('Error updating box:', error);
+      console.error('Error deleting box:', error);
       // TODO: Show error message to user
     } finally {
       setIsSubmitting(false);
@@ -498,6 +565,11 @@ export default function BoxesPage() {
       <Dialog open={!!selectedBox} onOpenChange={() => {
         setSelectedBox(null);
         setEditingBox(null);
+        // Clean up edit image state
+        setNewEditImages([]);
+        newEditPreviews.forEach(url => URL.revokeObjectURL(url));
+        setNewEditPreviews([]);
+        setImagesToDelete([]);
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -513,19 +585,29 @@ export default function BoxesPage() {
                 <div className="grid gap-2">
                   <Label>Box Images ({editingBox.images.length})</Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto">
-                    {editingBox.images
+                    {[...editingBox.images]
+                      .filter(img => !imagesToDelete.includes(img.id))
                       .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0)) // Primary first
                       .map((image) => (
                         <div key={image.id} className="relative aspect-square">
-                          <img
+                                                    <img
                             src={`http://${image.imageUrl}`}
                             alt={image.fileName}
                             className="w-full h-full object-cover rounded-lg border"
                             onError={(e) => {
                               // Show placeholder if image fails to load
-                              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlmYTJhOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
+                              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ci8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlmYTJhOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBmb3VuZDwvdGV4dD48L3N2Zz4=';
                             }}
                           />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setImagesToDelete(prev => [...prev, image.id]);
+                            }}
+                            className="absolute -top-2 -right-2 bg-black/70 hover:bg-black text-white rounded-full w-6 h-6 flex items-center justify-center text-sm transition-colors"
+                          >
+                            ×
+                          </button>
                           {image.isPrimary && (
                             <div className="absolute top-1 left-1 bg-black/70 text-white text-xs px-2 py-1 rounded">
                               Primary
@@ -536,22 +618,79 @@ export default function BoxesPage() {
                           </div>
                         </div>
                       ))}
+                    
+                    {/* New Images Previews */}
+                    {newEditPreviews.map((preview, index) => (
+                      <div key={`new-${index}`} className="relative aspect-square">
+                        <img
+                          src={preview}
+                          alt={`New image ${index + 1}`}
+                          className="w-full h-full object-cover rounded-lg border border-blue-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newImages = newEditImages.filter((_, i) => i !== index);
+                            const newPreviews = newEditPreviews.filter((_, i) => i !== index);
+                            URL.revokeObjectURL(newEditPreviews[index]);
+                            setNewEditImages(newImages);
+                            setNewEditPreviews(newPreviews);
+                          }}
+                          className="absolute -top-2 -right-2 bg-black/70 hover:bg-black text-white rounded-full w-6 h-6 flex items-center justify-center text-sm transition-colors"
+                        >
+                          ×
+                        </button>
+                        <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                          New
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Add New Images Button */}
+                    {(editingBox.images?.length || 0) - imagesToDelete.length + newEditImages.length < 10 && (
+                      <div className="relative aspect-square">
+                        <input
+                          type="file"
+                          multiple
+                          accept="image/*"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            const totalImages = (editingBox.images?.length || 0) - imagesToDelete.length + newEditImages.length + files.length;
+                            if (totalImages > 10) {
+                              alert('Maximum 10 images allowed');
+                              return;
+                            }
+                            
+                            const newImages = [...newEditImages, ...files];
+                            setNewEditImages(newImages);
+                            
+                            const newPreviews = files.map(file => URL.createObjectURL(file));
+                            setNewEditPreviews(prev => [...prev, ...newPreviews]);
+                            e.target.value = '';
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-gray-400 hover:bg-gray-50 transition-colors cursor-pointer">
+                          <Plus className="h-8 w-8 text-gray-400" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Primary image is shown first and used as the main preview
+                    Click × to remove images • Add new images with the + button • Primary image is shown first
                   </div>
                 </div>
               )}
               
               {/* Box Information Form */}
               <div className="grid gap-2">
-                <Label htmlFor="edit-boxId">Box ID</Label>
-                <Input
-                  id="edit-boxId"
-                  value={editingBox.boxId}
-                  onChange={(e) => setEditingBox(prev => prev ? { ...prev, boxId: e.target.value } : null)}
-                  placeholder="Enter box ID"
-                />
+                <Label>Box ID</Label>
+                <div className="px-3 py-2 bg-gray-100 border border-gray-200 rounded-md text-sm font-medium">
+                  {editingBox.boxId}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Box ID cannot be changed
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-location">Location</Label>
@@ -576,23 +715,37 @@ export default function BoxesPage() {
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex justify-between">
             <Button 
-              variant="outline" 
-              onClick={() => {
-                setSelectedBox(null);
-                setEditingBox(null);
-              }}
+              variant="destructive" 
+              onClick={handleDeleteBox}
               disabled={isSubmitting}
             >
-              Cancel
+              {isSubmitting ? 'Deleting...' : 'Delete Box'}
             </Button>
-            <Button 
-              onClick={handleUpdateBox}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
-            </Button>
+            <div className="flex gap-2">
+                              <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedBox(null);
+                    setEditingBox(null);
+                    // Clean up edit image state
+                    setNewEditImages([]);
+                    newEditPreviews.forEach(url => URL.revokeObjectURL(url));
+                    setNewEditPreviews([]);
+                    setImagesToDelete([]);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+              <Button 
+                onClick={handleUpdateBox}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
