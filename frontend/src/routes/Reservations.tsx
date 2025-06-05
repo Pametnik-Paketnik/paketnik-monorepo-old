@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, User, MapPin, Calendar, DollarSign, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -23,18 +23,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+
+// User type enum to match backend
+enum UserType {
+  USER = 'USER',
+  HOST = 'HOST',
+}
+
+// Reservation status enum to match backend
+enum ReservationStatus {
+  PENDING = 'PENDING',
+  CHECKED_IN = 'CHECKED_IN',
+  CHECKED_OUT = 'CHECKED_OUT',
+  CANCELLED = 'CANCELLED',
+}
+
+interface User {
+  id: number;
+  username: string;
+  userType: UserType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface BoxImage {
+  id: number;
+  imageKey: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  imageUrl: string;
+  isPrimary: boolean;
+  createdAt: string;
+}
 
 interface Box {
-  id: string;
+  id: number;
   boxId: string;
   location: string;
-  status: string;
+  owner: User;
   pricePerNight: number;
+  images?: BoxImage[];
 }
 
 interface BoxAvailability {
@@ -48,15 +83,25 @@ interface BoxAvailability {
 }
 
 interface Reservation {
-  id: string;
-  boxId: string;
-  guestId: string;
+  id: number;
+  guest: User;
+  host: User;
+  box: Box;
   checkinAt: string;
   checkoutAt: string;
+  actualCheckinAt?: string;
+  actualCheckoutAt?: string;
+  status: ReservationStatus;
+  totalPrice?: number | string;
+}
+
+// Simple box interface for the selector (from boxes slice)
+interface SimpleBox {
+  id: string;
+  boxId: string;
+  location: string;
   status: string;
-  totalPrice: number;
-  hostId: number;
-  [key: string]: any;
+  pricePerNight: number;
 }
 
 export default function ReservationsPage() {
@@ -76,7 +121,13 @@ export default function ReservationsPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedBoxAvailability, setSelectedBoxAvailability] = useState<BoxAvailability | null>(null);
-  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+
+  // Helper function to safely format price
+  const formatPrice = (price: number | string | undefined): string => {
+    if (!price) return '0.00';
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2);
+  };
 
   useEffect(() => {
     dispatch(fetchReservations());
@@ -97,7 +148,7 @@ export default function ReservationsPage() {
 
   const totalReservations = validItems.length;
 
-  const validBoxes = (boxes as Box[]).filter((item) => {
+  const validBoxes = (boxes as SimpleBox[]).filter((item) => {
     const hasId = item && typeof item.boxId === 'string' && item.boxId.length > 0;
     return hasId;
   });
@@ -105,7 +156,6 @@ export default function ReservationsPage() {
   const fetchBoxAvailability = async (boxId: string) => {
     if (!token) return;
     
-    setIsLoadingAvailability(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/boxes/${boxId}/availability`, {
         headers: {
@@ -122,8 +172,6 @@ export default function ReservationsPage() {
       setSelectedBoxAvailability(data);
     } catch (error) {
       console.error('Error fetching box availability:', error);
-    } finally {
-      setIsLoadingAvailability(false);
     }
   };
 
@@ -147,6 +195,36 @@ export default function ReservationsPage() {
       return 'bg-gray-200 text-gray-400 cursor-not-allowed hover:bg-gray-200 hover:text-gray-400';
     }
     return '';
+  };
+
+  const getStatusIcon = (status: ReservationStatus) => {
+    switch (status) {
+      case ReservationStatus.PENDING:
+        return <Clock className="h-4 w-4" />;
+      case ReservationStatus.CHECKED_IN:
+        return <CheckCircle className="h-4 w-4 text-blue-500" />;
+      case ReservationStatus.CHECKED_OUT:
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case ReservationStatus.CANCELLED:
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <AlertCircle className="h-4 w-4" />;
+    }
+  };
+
+  const getStatusColor = (status: ReservationStatus) => {
+    switch (status) {
+      case ReservationStatus.PENDING:
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case ReservationStatus.CHECKED_IN:
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case ReservationStatus.CHECKED_OUT:
+        return 'bg-green-100 text-green-800 border-green-200';
+      case ReservationStatus.CANCELLED:
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
   const handleAddReservation = async () => {
@@ -249,54 +327,124 @@ export default function ReservationsPage() {
         )}
 
         {!loading && !error && validItems.length > 0 && (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {validItems.map((reservation) => (
-              <Card key={`reservation-${reservation.id}`} className="flex flex-col">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Reservation {reservation.id}</CardTitle>
+              <Card key={`reservation-${reservation.id}`} className="flex flex-col hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">Reservation #{reservation.id}</CardTitle>
+                    <Badge className={`flex items-center gap-1 ${getStatusColor(reservation.status)}`}>
+                      {getStatusIcon(reservation.status)}
+                      {reservation.status}
+                    </Badge>
+                  </div>
                 </CardHeader>
-                <CardContent className="flex-1">
+                <CardContent className="flex-1 space-y-4">
+                  {/* Box Information */}
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Box ID:</span>
-                      <span className="text-sm font-medium">{reservation.boxId}</span>
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      Box Details
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Guest ID:</span>
-                      <span className="text-sm font-medium">{reservation.guestId}</span>
+                    <div className="ml-6 space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Box ID:</span>
+                        <span className="text-sm font-medium">{reservation.box.boxId}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Location:</span>
+                        <span className="text-sm font-medium">{reservation.box.location}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Price/Night:</span>
+                        <span className="text-sm font-medium">${reservation.box.pricePerNight}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Check-in:</span>
-                      <span className="text-sm font-medium">
-                        {new Date(reservation.checkinAt).toLocaleDateString()}
-                      </span>
+                  </div>
+
+                  {/* Guest Information */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <User className="h-4 w-4" />
+                      Guest Details
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Check-out:</span>
-                      <span className="text-sm font-medium">
-                        {new Date(reservation.checkoutAt).toLocaleDateString()}
-                      </span>
+                    <div className="ml-6 space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Guest:</span>
+                        <span className="text-sm font-medium">{reservation.guest.username}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Guest ID:</span>
+                        <span className="text-sm font-medium">{reservation.guest.id}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Status:</span>
-                      <span className="text-sm font-medium">{reservation.status}</span>
+                  </div>
+
+                  {/* Reservation Dates */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      Stay Period
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Total Price:</span>
-                      <span className="text-sm font-medium">
-                        ${typeof reservation.totalPrice === 'number' ? reservation.totalPrice.toFixed(2) : '0.00'}
-                      </span>
+                    <div className="ml-6 space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Check-in:</span>
+                        <span className="text-sm font-medium">
+                          {new Date(reservation.checkinAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-muted-foreground">Check-out:</span>
+                        <span className="text-sm font-medium">
+                          {new Date(reservation.checkoutAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {reservation.actualCheckinAt && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Actual Check-in:</span>
+                          <span className="text-sm font-medium text-green-600">
+                            {new Date(reservation.actualCheckinAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      {reservation.actualCheckoutAt && (
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Actual Check-out:</span>
+                          <span className="text-sm font-medium text-green-600">
+                            {new Date(reservation.actualCheckoutAt).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="pt-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={() => setSelectedReservation(reservation)}
-                      >
-                        Details
-                      </Button>
-                    </div>
+                  </div>
+
+                                     {/* Price Information */}
+                   {reservation.totalPrice && (
+                     <div className="space-y-2">
+                       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                         <DollarSign className="h-4 w-4" />
+                         Payment
+                       </div>
+                       <div className="ml-6">
+                         <div className="flex justify-between">
+                           <span className="text-sm text-muted-foreground">Total Price:</span>
+                           <span className="text-sm font-medium text-green-600">
+                             ${formatPrice(reservation.totalPrice)}
+                           </span>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                  <div className="pt-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setSelectedReservation(reservation)}
+                    >
+                      View Details
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -379,7 +527,7 @@ export default function ReservationsPage() {
                       <span>Unavailable dates</span>
                     </div>
                   </div>
-                  <Calendar
+                  <CalendarComponent
                     mode="single"
                     selected={newReservationData.checkinAt ? new Date(newReservationData.checkinAt) : undefined}
                     onSelect={(date: Date | undefined) => date && setNewReservationData(prev => ({ 
@@ -429,7 +577,7 @@ export default function ReservationsPage() {
                       <span>Unavailable dates</span>
                     </div>
                   </div>
-                  <Calendar
+                  <CalendarComponent
                     mode="single"
                     selected={newReservationData.checkoutAt ? new Date(newReservationData.checkoutAt) : undefined}
                     onSelect={(date: Date | undefined) => date && setNewReservationData(prev => ({ 
@@ -487,27 +635,116 @@ export default function ReservationsPage() {
 
       {/* Reservation Details Dialog */}
       <Dialog open={!!selectedReservation} onOpenChange={() => setSelectedReservation(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Reservation Details</DialogTitle>
             <DialogDescription>
-              Detailed information about the selected reservation
+              Complete information about reservation #{selectedReservation?.id}
             </DialogDescription>
           </DialogHeader>
           {selectedReservation && (
-            <div className="grid gap-4 py-4">
-              {Object.entries(selectedReservation).map(([key, value]) => (
-                <div key={key} className="grid grid-cols-4 items-center gap-4">
-                  <div className="font-medium">{key}</div>
-                  <div className="col-span-3">
-                    {key === 'checkinAt' || key === 'checkoutAt'
-                      ? new Date(value as string).toLocaleDateString()
-                      : key === 'totalPrice'
-                      ? `$${typeof value === 'number' ? value.toFixed(2) : '0.00'}`
-                      : value?.toString() || '-'}
+            <div className="grid gap-6 py-4">
+              {/* Basic Info */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Basic Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="font-medium text-sm">Reservation ID</div>
+                    <div className="text-sm text-muted-foreground">{selectedReservation.id}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">Status</div>
+                    <Badge className={`${getStatusColor(selectedReservation.status)} flex items-center gap-1 w-fit`}>
+                      {getStatusIcon(selectedReservation.status)}
+                      {selectedReservation.status}
+                    </Badge>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Box Details */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Box Information</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="font-medium text-sm">Box ID</div>
+                    <div className="text-sm text-muted-foreground">{selectedReservation.box.boxId}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">Location</div>
+                    <div className="text-sm text-muted-foreground">{selectedReservation.box.location}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">Price per Night</div>
+                    <div className="text-sm text-muted-foreground">${selectedReservation.box.pricePerNight}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">Box Owner</div>
+                    <div className="text-sm text-muted-foreground">{selectedReservation.box.owner.username}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Guest & Host Details */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">People</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="font-medium text-sm">Guest</div>
+                    <div className="text-sm text-muted-foreground">{selectedReservation.guest.username} (ID: {selectedReservation.guest.id})</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">Host</div>
+                    <div className="text-sm text-muted-foreground">{selectedReservation.host.username} (ID: {selectedReservation.host.id})</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Dates & Times</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="font-medium text-sm">Planned Check-in</div>
+                    <div className="text-sm text-muted-foreground">{new Date(selectedReservation.checkinAt).toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm">Planned Check-out</div>
+                    <div className="text-sm text-muted-foreground">{new Date(selectedReservation.checkoutAt).toLocaleString()}</div>
+                  </div>
+                  {selectedReservation.actualCheckinAt && (
+                    <div>
+                      <div className="font-medium text-sm">Actual Check-in</div>
+                      <div className="text-sm text-green-600">{new Date(selectedReservation.actualCheckinAt).toLocaleString()}</div>
+                    </div>
+                  )}
+                  {selectedReservation.actualCheckoutAt && (
+                    <div>
+                      <div className="font-medium text-sm">Actual Check-out</div>
+                      <div className="text-sm text-green-600">{new Date(selectedReservation.actualCheckoutAt).toLocaleString()}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Financial */}
+              {selectedReservation.totalPrice && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Financial</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                                         <div>
+                       <div className="font-medium text-sm">Total Price</div>
+                       <div className="text-lg font-semibold text-green-600">${formatPrice(selectedReservation.totalPrice)}</div>
+                     </div>
+                    <div>
+                      <div className="font-medium text-sm">Nights</div>
+                      <div className="text-sm text-muted-foreground">
+                        {Math.ceil((new Date(selectedReservation.checkoutAt).getTime() - new Date(selectedReservation.checkinAt).getTime()) / (1000 * 60 * 60 * 24))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
