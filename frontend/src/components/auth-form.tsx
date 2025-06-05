@@ -63,7 +63,14 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
       const data = await res.json();
 
       if (data.success) {
-        // Dispatch to redux store
+        // For login, check user type before storing credentials
+        if (isLogin) {
+          if (data.user.userType !== "HOST") {
+            throw new Error("Access denied. Only HOST users can access the dashboard.");
+          }
+        }
+        
+        // Dispatch to redux store (only for HOST users during login, or for registration)
         dispatch(
           setCredentials({
             user: data.user,
