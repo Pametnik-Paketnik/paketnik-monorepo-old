@@ -75,6 +75,58 @@ export async function apiPost(url: string, data?: unknown, options: ApiRequestOp
 }
 
 /**
+ * Convenience method for POST requests with FormData (file uploads)
+ */
+export async function apiPostFormData(url: string, formData: FormData, options: ApiRequestOptions = {}) {
+  const { requiresAuth = true, ...fetchOptions } = options;
+  
+  // Get current auth state
+  const state = store.getState();
+  const token = state.auth.accessToken;
+  
+  // Prepare headers (don't set Content-Type for FormData, let browser set it with boundary)
+  const headers: Record<string, string> = {
+    ...(fetchOptions.headers as Record<string, string>),
+  };
+  
+  // Add auth header if required and token exists
+  if (requiresAuth && token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  try {
+    const response = await fetch(url, {
+      ...fetchOptions,
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    
+    // Check for authentication errors
+    if (response.status === 401 || response.status === 403) {
+      // Token is expired or invalid
+      console.warn('JWT token expired or invalid, logging out user');
+      store.dispatch(logout());
+      
+      // Redirect to login page
+      window.location.href = '/login';
+      
+      throw new Error('Authentication failed. Please log in again.');
+    }
+    
+    return response;
+  } catch (error) {
+    // If it's a network error and we have an invalid token, also logout
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      // This might be a CORS error due to invalid token
+      console.warn('Network error, checking if related to authentication');
+    }
+    
+    throw error;
+  }
+}
+
+/**
  * Convenience method for PATCH requests
  */
 export async function apiPatch(url: string, data?: unknown, options: ApiRequestOptions = {}) {
