@@ -9,28 +9,39 @@ services:
     ports:
       - "3000:3000"
     # HOT RELOADING - ENABLE BY UNCOMMENTING:
-    volumes:
-      - ./backend:/app         # Mount local source code for live reload
-      - /app/node_modules      # Keep container's node_modules
+    # volumes:
+    #   - ./backend:/app         # Mount local source code for live reload
+    #   - /app/node_modules      # Keep container's node_modules
     env_file:
       - ./backend/.env.dev
-    command: pnpm start:dev
 
-  # frontend:
-  #   depends_on:
-  #     - backend
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile.dev
-  #   ports:
-  #     - "5173:5173"
-  #   # HOT RELOADING - ENABLE BY UNCOMMENTING:
-  #   # volumes:
-  #   #   - ./frontend:/app # Mount local source code for live reload
-  #   #   - /app/node_modules # Keep container's node_modules
-  #   env_file:
-  #     - ./frontend/.env.dev
-  #   command: pnpm dev --host
+  frontend:
+    depends_on:
+      - backend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    # HOT RELOADING - ENABLE BY UNCOMMENTING:
+    # volumes:
+    #   - ./frontend:/app # Mount local source code for live reload
+    #   - /app/node_modules # Keep container's node_modules
+    env_file:
+      - ./frontend/.env.dev
+
+  faceauth:
+    build:
+      context: ./face-auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./face-auth-service:/app       # mount your FastAPI code into /app
+      - ./face-auth-service/data:/app/data  # mount data folder (false-faces, jobs, etc.)
+      # (do NOT mount /app/venv or /app/.venv—just code + data)
+    env_file:
+      - ./backend/.env.dev
 
   db:
     image: postgres:15

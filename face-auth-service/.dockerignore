@@ -26,15 +26,6 @@ venv.bak/
 *.swo
 .DS_Store
 
-# Image files (unless specifically needed)
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
-*.webp
-
 # Machine Learning and Face Recognition specific
 face_encodings/
 face_database/
