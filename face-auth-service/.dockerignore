@@ -55,6 +55,7 @@ log/
 .env.test.local
 .env.production.local
 .env.dev
+.env.template
 
 # Testing and Coverage
 htmlcov/
