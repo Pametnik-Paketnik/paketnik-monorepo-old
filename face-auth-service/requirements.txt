@@ -5,3 +5,5 @@ tqdm
 numpy
 mediapipe
 opencv-python-headless
+pillow
+minio

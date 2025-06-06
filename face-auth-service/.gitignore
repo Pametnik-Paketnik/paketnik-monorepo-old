@@ -74,3 +74,7 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/ 
+
+./testing
+
+/data/
