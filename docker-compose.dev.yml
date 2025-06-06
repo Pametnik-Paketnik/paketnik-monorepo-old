@@ -42,6 +42,13 @@ services:
       # (do NOT mount /app/venv or /app/.venv—just code + data)
     env_file:
       - ./backend/.env.dev
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   db:
     image: postgres:15
