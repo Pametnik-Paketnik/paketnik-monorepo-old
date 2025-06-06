@@ -3,15 +3,30 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchBoxOpeningHistory } from '@/store/boxOpeningHistorySlice';
 import type { RootState, AppDispatch } from '@/store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+
+interface User {
+  id: number;
+  username: string;
+  userType: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface BoxOpeningHistory {
-  id: string;
+  user: User;
   boxId: string;
-  userId: number;
-  openedAt: string;
-  closedAt: string | null;
+  timestamp: string;
   status: string;
-  [key: string]: any;
+  tokenFormat: number;
 }
 
 export default function BoxOpeningHistoryPage() {
@@ -23,9 +38,9 @@ export default function BoxOpeningHistoryPage() {
   }, [dispatch]);
 
   const validItems = (items as BoxOpeningHistory[]).filter((item) => {
-    return item && item.id;
+    return item && item.user && item.boxId;
   }).sort((a, b) => {
-    return new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime();
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
   });
 
   if (loading) {
@@ -50,48 +65,82 @@ export default function BoxOpeningHistoryPage() {
     );
   }
 
+  const getStatusBadge = (status: string) => {
+    const variant = status === 'success' ? 'default' : 'destructive';
+    return (
+      <Badge variant={variant}>
+        {status}
+      </Badge>
+    );
+  };
+
   return (
     <div className="@container/main flex flex-1 flex-col gap-2 px-4 md:px-6 lg:px-8">
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-        <h1 className="text-2xl font-bold">Box Opening History</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Box Opening History</h1>
+          <p className="text-sm text-muted-foreground">
+            All opening attempts for your boxes ({validItems.length} records)
+          </p>
+        </div>
         
         {validItems.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <div className="text-center">
               <div className="text-lg font-medium mb-2">No box opening history found</div>
-              <div className="text-sm text-muted-foreground">You haven't opened any boxes yet</div>
+              <div className="text-sm text-muted-foreground">No one has attempted to open your boxes yet</div>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {validItems.map((item) => (
-              <Card key={item.id} className="flex flex-col">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">Box {item.boxId}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Opened At:</span>
-                      <span className="text-sm font-medium">
-                        {new Date(item.openedAt).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Closed At:</span>
-                      <span className="text-sm font-medium">
-                        {item.closedAt ? new Date(item.closedAt).toLocaleString() : 'Still Open'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Status:</span>
-                      <span className="text-sm font-medium">{item.status}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Opening History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Box ID</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>User Type</TableHead>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Token Format</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {validItems.map((item, index) => (
+                    <TableRow key={`${item.boxId}-${item.user.id}-${item.timestamp}-${index}`}>
+                      <TableCell className="font-medium">{item.boxId}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{item.user.username}</div>
+                          <div className="text-sm text-muted-foreground">ID: {item.user.id}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{item.user.userType}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">
+                            {new Date(item.timestamp).toLocaleDateString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {new Date(item.timestamp).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(item.status)}
+                      </TableCell>
+                      <TableCell>{item.tokenFormat}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
