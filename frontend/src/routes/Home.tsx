@@ -9,14 +9,15 @@ import type { RootState, AppDispatch } from '@/store';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { Package, Calendar, DollarSign } from 'lucide-react';
 
 interface Box {
   id: string;
   name: string | null;
   hostId: number | null;
   pricePerNight: string | number;
-  [key: string]: any;
+  boxId: string;
+  location?: string;
+  status?: string;
 }
 
 interface Reservation {
@@ -27,7 +28,6 @@ interface Reservation {
   checkoutAt: string;
   status: string;
   totalPrice: number;
-  [key: string]: any;
 }
 
 interface RevenueData {

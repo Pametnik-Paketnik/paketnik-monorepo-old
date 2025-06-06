@@ -1,18 +1,18 @@
 import { useEffect } from "react"
-import { useSelector } from "react-redux"
 import { useNavigate } from "react-router-dom"
-import type { RootState } from "@/store"
+import { useAuth } from "@/hooks/use-auth"
 import { AuthForm } from "@/components/auth-form"
 
 export default function Page() {
   const navigate = useNavigate()
-  const { user, isInitialized } = useSelector((state: RootState) => state.auth)
+  const { user, isInitialized, isHost } = useAuth()
 
   useEffect(() => {
-    if (isInitialized && user) {
+    if (isInitialized && user && isHost) {
+      // Only HOST users will have stored sessions, so redirect them to dashboard
       navigate("/", { replace: true })
     }
-  }, [user, isInitialized, navigate])
+  }, [user, isInitialized, isHost, navigate])
 
   if (!isInitialized) {
     return (

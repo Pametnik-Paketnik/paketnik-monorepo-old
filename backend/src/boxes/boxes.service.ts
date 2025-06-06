@@ -19,7 +19,7 @@ import { firstValueFrom } from 'rxjs';
 import { UnlockHistory } from './entities/unlock-history.entity';
 import { User, UserType } from '../users/entities/user.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
-import { Not, Between } from 'typeorm';
+import { Not, Between, In } from 'typeorm';
 import { ReservationStatus } from '../reservations/entities/reservation.entity';
 import { BoxImagesService } from './services/box-images.service';
 import { MulterFile } from '../common/interfaces/multer.interface';
@@ -322,6 +322,25 @@ export class BoxesService {
   async getOpeningHistoryByUserId(userId: number): Promise<UnlockHistory[]> {
     return this.unlockHistoryRepo.find({
       where: { user: { id: userId } },
+      relations: ['user'],
+      order: { timestamp: 'DESC' },
+    });
+  }
+
+  async getOpeningHistoryByHostId(hostId: number): Promise<UnlockHistory[]> {
+    // First, verify that the user exists and is a HOST, and get all their boxes
+    const hostBoxes = await this.findByHostId(hostId);
+
+    if (!hostBoxes || hostBoxes.length === 0) {
+      return []; // Return empty array if host has no boxes
+    }
+
+    // Extract all boxIds belonging to this host
+    const boxIds = hostBoxes.map((box) => box.boxId);
+
+    // Get all opening history for these boxes using TypeORM's In operator
+    return this.unlockHistoryRepo.find({
+      where: { boxId: In(boxIds) },
       relations: ['user'],
       order: { timestamp: 'DESC' },
     });

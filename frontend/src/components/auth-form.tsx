@@ -43,8 +43,8 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
 
     // Determine URL and method
     const url = isLogin
-      ? "http://localhost:3000/api/auth/login"
-      : "http://localhost:3000/api/auth/register";
+      ? `${import.meta.env.VITE_API_URL}/auth/login`
+      : `${import.meta.env.VITE_API_URL}/auth/register`;
 
     try {
       const res = await fetch(url, {
@@ -63,7 +63,14 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
       const data = await res.json();
 
       if (data.success) {
-        // Dispatch to redux store
+        // For login, check user type before storing credentials
+        if (isLogin) {
+          if (data.user.userType !== "HOST") {
+            throw new Error("Access denied. Only HOST users can access the dashboard.");
+          }
+        }
+        
+        // Dispatch to redux store (only for HOST users during login, or for registration)
         dispatch(
           setCredentials({
             user: data.user,
@@ -75,8 +82,8 @@ export function AuthForm({ className, mode, ...props }: AuthFormProps) {
       } else {
         throw new Error(data.message || "Authentication failed");
       }
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }

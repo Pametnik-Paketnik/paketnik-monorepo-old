@@ -1,14 +1,21 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { RootState } from './index';
+import { apiGet } from '@/lib/api';
+
+interface User {
+  id: number;
+  username: string;
+  userType: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface BoxOpeningHistory {
-  id: string;
+  user: User;
   boxId: string;
-  userId: number;
-  openedAt: string;
-  closedAt: string | null;
+  timestamp: string;
   status: string;
-  [key: string]: any;
+  tokenFormat: number;
 }
 
 export const fetchBoxOpeningHistory = createAsyncThunk(
@@ -16,19 +23,13 @@ export const fetchBoxOpeningHistory = createAsyncThunk(
   async (_, { rejectWithValue, getState }) => {
     try {
       const state = getState() as RootState;
-      const token = state.auth.accessToken;
       const userId = state.auth.user?.id;
 
       if (!userId) {
         throw new Error('No user ID available');
       }
 
-      const response = await fetch(`http://localhost:3000/api/boxes/opening-history/user/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiGet(`${import.meta.env.VITE_API_URL}/boxes/opening-history/host/${userId}`);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -37,8 +38,8 @@ export const fetchBoxOpeningHistory = createAsyncThunk(
 
       const data = await response.json();
       return data;
-    } catch (err: any) {
-      return rejectWithValue(err.message);
+    } catch (err: unknown) {
+      return rejectWithValue(err instanceof Error ? err.message : 'Unknown error');
     }
   }
 );

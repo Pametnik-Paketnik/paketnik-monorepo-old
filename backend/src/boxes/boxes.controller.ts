@@ -173,6 +173,25 @@ export class BoxesController {
     return this.boxesService.getOpeningHistoryByUserId(+userId);
   }
 
+  @Get('opening-history/host/:hostId')
+  @ApiOperation({
+    summary: 'Get opening history for all boxes belonging to a specific host',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Return opening history for all boxes belonging to the specified host.',
+    type: [UnlockHistory],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Host not found or no boxes found.',
+  })
+  async getOpeningHistoryByHostId(@Param('hostId') hostId: string) {
+    return this.boxesService.getOpeningHistoryByHostId(+hostId);
+  }
+
   @Post('open')
   @ApiOperation({ summary: 'Open a box' })
   @ApiResponse({ status: 200, description: 'Box successfully opened.' })
