@@ -30,7 +30,7 @@ export class StorageService {
   private readonly s3Client: S3Client;
   private readonly buckets = {
     images: 'box-images',
-    models: 'ml-models',
+    models: 'face-auth-models',
   };
 
   constructor(private configService: ConfigService) {
