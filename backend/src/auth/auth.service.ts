@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -84,7 +80,7 @@ export class AuthService {
   async logout(token: string): Promise<{ success: boolean; message: string }> {
     try {
       // Verify token is valid before blacklisting
-      const payload = await this.jwtService.verifyAsync(token);
+      await this.jwtService.verifyAsync(token);
 
       // Add token to blacklist
       this.tokenBlacklistService.addToken(token);
@@ -93,7 +89,7 @@ export class AuthService {
         success: true,
         message: 'Logout successful',
       };
-    } catch (error) {
+    } catch {
       // Even if token is invalid, consider logout successful
       return {
         success: true,

@@ -26,6 +26,7 @@ import {
 import { BoxImagesService } from '../services/box-images.service';
 import { BoxImage } from '../entities/box-image.entity';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { MulterFile } from '../../common/interfaces/multer.interface';
 
 @ApiTags('Box Images')
 @ApiBearerAuth('access-token')
@@ -58,7 +59,7 @@ export class BoxImagesController {
   })
   async uploadImage(
     @Param('boxId') boxId: string,
-    @UploadedFile() file: any,
+    @UploadedFile() file: MulterFile,
     @Query('isPrimary', new ParseBoolPipe({ optional: true }))
     isPrimary?: boolean,
   ): Promise<BoxImage> {
