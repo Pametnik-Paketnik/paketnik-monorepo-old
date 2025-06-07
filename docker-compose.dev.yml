@@ -3,6 +3,7 @@ services:
     depends_on:
       - db
       - minio
+      - faceauth
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
@@ -14,6 +15,9 @@ services:
     #   - /app/node_modules      # Keep container's node_modules
     env_file:
       - ./backend/.env.dev
+    networks:
+      - default
+      - internal
 
   frontend:
     depends_on:
@@ -34,14 +38,15 @@ services:
     build:
       context: ./face-auth-service
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
-      - ./face-auth-service:/app       # mount your FastAPI code into /app
-      - ./face-auth-service/data:/app/data  # mount data folder (false-faces, jobs, etc.)
-      # (do NOT mount /app/venv or /app/.venv—just code + data)
+      - ./face-auth-service:/app
+      - ./face-auth-service/data:/app/data
     env_file:
       - ./backend/.env.dev
+    networks:
+      - internal
     deploy:
       resources:
         reservations:
@@ -87,8 +92,15 @@ services:
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
+    networks:
+      - default
+      - internal
 
 volumes:
   pgdata:
   pgadmin-data:
-  minio-data: 
+  minio-data:
+
+networks:
+  internal:
+    internal: true 
