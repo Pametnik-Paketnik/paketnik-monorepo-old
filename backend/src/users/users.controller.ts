@@ -67,7 +67,7 @@ export class UsersController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Username already exists',
+    description: 'Email already exists',
   })
   async update(
     @Param('id') id: string,
@@ -92,7 +92,9 @@ export class UsersController {
   private mapToResponseDto(user: User): UserResponseDto {
     const responseDto = new UserResponseDto();
     responseDto.id = user.id;
-    responseDto.username = user.username;
+    responseDto.name = user.name;
+    responseDto.surname = user.surname;
+    responseDto.email = user.email;
     responseDto.userType = user.userType;
     responseDto.createdAt = user.createdAt;
     responseDto.updatedAt = user.updatedAt;

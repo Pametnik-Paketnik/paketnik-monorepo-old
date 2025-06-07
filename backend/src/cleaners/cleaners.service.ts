@@ -31,13 +31,13 @@ export class CleanersService {
       throw new ForbiddenException('Only hosts can create cleaner accounts');
     }
 
-    // Check if username already exists
+    // Check if email already exists
     const existingUser = await this.usersRepository.findOne({
-      where: { username: createCleanerDto.username },
+      where: { email: createCleanerDto.email },
     });
 
     if (existingUser) {
-      throw new ConflictException('Username already exists');
+      throw new ConflictException('Email already exists');
     }
 
     // Hash the password
@@ -45,7 +45,9 @@ export class CleanersService {
 
     // Create the cleaner
     const cleaner = this.usersRepository.create({
-      username: createCleanerDto.username,
+      name: createCleanerDto.name,
+      surname: createCleanerDto.surname,
+      email: createCleanerDto.email,
       hashedPassword,
       userType: UserType.CLEANER,
       host,
@@ -69,7 +71,15 @@ export class CleanersService {
         host: { id: hostId },
         userType: UserType.CLEANER,
       },
-      select: ['id', 'username', 'userType', 'createdAt', 'updatedAt'],
+      select: [
+        'id',
+        'name',
+        'surname',
+        'email',
+        'userType',
+        'createdAt',
+        'updatedAt',
+      ],
     });
   }
 
@@ -80,7 +90,15 @@ export class CleanersService {
         userType: UserType.CLEANER,
         host: { id: hostId },
       },
-      select: ['id', 'username', 'userType', 'createdAt', 'updatedAt'],
+      select: [
+        'id',
+        'name',
+        'surname',
+        'email',
+        'userType',
+        'createdAt',
+        'updatedAt',
+      ],
     });
 
     if (!cleaner) {
@@ -97,23 +115,28 @@ export class CleanersService {
   ): Promise<User> {
     const cleaner = await this.getCleanerById(hostId, cleanerId);
 
-    // Check if new username already exists (if provided)
-    if (
-      updateCleanerDto.username &&
-      updateCleanerDto.username !== cleaner.username
-    ) {
+    // Check if new email already exists (if provided)
+    if (updateCleanerDto.email && updateCleanerDto.email !== cleaner.email) {
       const existingUser = await this.usersRepository.findOne({
-        where: { username: updateCleanerDto.username },
+        where: { email: updateCleanerDto.email },
       });
 
       if (existingUser) {
-        throw new ConflictException('Username already exists');
+        throw new ConflictException('Email already exists');
       }
     }
 
     // Update fields
-    if (updateCleanerDto.username) {
-      cleaner.username = updateCleanerDto.username;
+    if (updateCleanerDto.name) {
+      cleaner.name = updateCleanerDto.name;
+    }
+
+    if (updateCleanerDto.surname) {
+      cleaner.surname = updateCleanerDto.surname;
+    }
+
+    if (updateCleanerDto.email) {
+      cleaner.email = updateCleanerDto.email;
     }
 
     if (updateCleanerDto.password) {

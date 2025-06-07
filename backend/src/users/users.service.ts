@@ -23,13 +23,13 @@ export class UsersService {
   }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    // Check if username already exists
+    // Check if email already exists
     const existingUser = await this.usersRepository.findOne({
-      where: { username: createUserDto.username },
+      where: { email: createUserDto.email },
     });
 
     if (existingUser) {
-      throw new ConflictException('Username already exists');
+      throw new ConflictException('Email already exists');
     }
 
     // Hash the password
@@ -37,7 +37,9 @@ export class UsersService {
 
     // Create new user
     const user = this.usersRepository.create({
-      username: createUserDto.username,
+      name: createUserDto.name,
+      surname: createUserDto.surname,
+      email: createUserDto.email,
       hashedPassword,
       userType: createUserDto.userType,
     });
@@ -57,10 +59,10 @@ export class UsersService {
     return user;
   }
 
-  async findByUsername(username: string): Promise<User> {
-    const user = await this.usersRepository.findOne({ where: { username } });
+  async findByEmail(email: string): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) {
-      throw new NotFoundException(`User with username ${username} not found`);
+      throw new NotFoundException(`User with email ${email} not found`);
     }
     return user;
   }
@@ -68,15 +70,23 @@ export class UsersService {
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findOne(id);
 
-    if (updateUserDto.username) {
-      // Check if new username is already taken
+    if (updateUserDto.name) {
+      user.name = updateUserDto.name;
+    }
+
+    if (updateUserDto.surname) {
+      user.surname = updateUserDto.surname;
+    }
+
+    if (updateUserDto.email) {
+      // Check if new email is already taken
       const existingUser = await this.usersRepository.findOne({
-        where: { username: updateUserDto.username },
+        where: { email: updateUserDto.email },
       });
       if (existingUser && existingUser.id !== id) {
-        throw new ConflictException('Username already exists');
+        throw new ConflictException('Email already exists');
       }
-      user.username = updateUserDto.username;
+      user.email = updateUserDto.email;
     }
 
     if (updateUserDto.password) {

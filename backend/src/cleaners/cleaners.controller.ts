@@ -47,7 +47,9 @@ export class CleanersController {
     schema: {
       example: {
         id: 4,
-        username: 'cleaner_maria',
+        name: 'Maria',
+        surname: 'Garcia',
+        email: 'maria.garcia@example.com',
         userType: 'CLEANER',
         createdAt: '2024-01-15T10:30:00Z',
         updatedAt: '2024-01-15T10:30:00Z',
@@ -60,7 +62,7 @@ export class CleanersController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Username already exists',
+    description: 'Email already exists',
   })
   async createCleaner(
     @Req() req: RequestWithUser,
@@ -84,14 +86,18 @@ export class CleanersController {
       example: [
         {
           id: 4,
-          username: 'cleaner_maria',
+          name: 'Maria',
+          surname: 'Garcia',
+          email: 'maria.garcia@example.com',
           userType: 'CLEANER',
           createdAt: '2024-01-15T10:30:00Z',
           updatedAt: '2024-01-15T10:30:00Z',
         },
         {
           id: 5,
-          username: 'cleaner_john',
+          name: 'John',
+          surname: 'Smith',
+          email: 'john.smith@example.com',
           userType: 'CLEANER',
           createdAt: '2024-01-16T09:15:00Z',
           updatedAt: '2024-01-16T09:15:00Z',
@@ -123,7 +129,9 @@ export class CleanersController {
     schema: {
       example: {
         id: 4,
-        username: 'cleaner_maria',
+        name: 'Maria',
+        surname: 'Garcia',
+        email: 'maria.garcia@example.com',
         userType: 'CLEANER',
         createdAt: '2024-01-15T10:30:00Z',
         updatedAt: '2024-01-15T10:30:00Z',
@@ -157,7 +165,9 @@ export class CleanersController {
     schema: {
       example: {
         id: 4,
-        username: 'cleaner_maria_updated',
+        name: 'Maria',
+        surname: 'Garcia-Updated',
+        email: 'maria.garcia.updated@example.com',
         userType: 'CLEANER',
         createdAt: '2024-01-15T10:30:00Z',
         updatedAt: '2024-01-15T14:20:00Z',
@@ -170,7 +180,7 @@ export class CleanersController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Username already exists',
+    description: 'Email already exists',
   })
   async updateCleaner(
     @Req() req: RequestWithUser,

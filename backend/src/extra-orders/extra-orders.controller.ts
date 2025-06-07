@@ -20,10 +20,7 @@ import { ExtraOrdersService } from './extra-orders.service';
 import { CreateExtraOrderDto } from './dto/create-extra-order.dto';
 import { FulfillExtraOrderDto } from './dto/fulfill-extra-order.dto';
 import { ExtraOrder } from './entities/extra-order.entity';
-
-interface AuthenticatedRequest extends Request {
-  user: { userId: number; username: string };
-}
+import { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 
 @ApiTags('extra-orders')
 @ApiBearerAuth('access-token')
@@ -115,7 +112,7 @@ export class ExtraOrdersController {
   })
   create(
     @Body() createExtraOrderDto: CreateExtraOrderDto,
-    @Req() req: AuthenticatedRequest,
+    @Req() req: RequestWithUser,
   ) {
     return this.extraOrdersService.create(createExtraOrderDto, req.user.userId);
   }
@@ -164,7 +161,7 @@ export class ExtraOrdersController {
     status: 404,
     description: 'Cleaner not found or not assigned to a host.',
   })
-  findMyPendingOrders(@Req() req: AuthenticatedRequest) {
+  findMyPendingOrders(@Req() req: RequestWithUser) {
     return this.extraOrdersService.findPendingOrdersForCleaner(req.user.userId);
   }
 
@@ -183,7 +180,7 @@ export class ExtraOrdersController {
   @ApiResponse({ status: 404, description: 'Reservation not found.' })
   findByReservation(
     @Param('reservationId') reservationId: string,
-    @Req() req: AuthenticatedRequest,
+    @Req() req: RequestWithUser,
   ) {
     return this.extraOrdersService.findByReservation(
       +reservationId,
@@ -238,7 +235,7 @@ export class ExtraOrdersController {
   fulfill(
     @Param('id') id: string,
     @Body() fulfillDto: FulfillExtraOrderDto,
-    @Req() req: AuthenticatedRequest,
+    @Req() req: RequestWithUser,
   ) {
     return this.extraOrdersService.fulfill(+id, fulfillDto, req.user.userId);
   }
@@ -262,7 +259,7 @@ export class ExtraOrdersController {
       "You can only cancel your own orders or orders for your host's inventory items.",
   })
   @ApiResponse({ status: 404, description: 'Extra order not found.' })
-  cancel(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+  cancel(@Param('id') id: string, @Req() req: RequestWithUser) {
     return this.extraOrdersService.cancel(+id, req.user.userId);
   }
 }
