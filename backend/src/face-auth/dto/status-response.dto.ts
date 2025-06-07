@@ -25,4 +25,4 @@ export class StatusResponseDto {
     example: 'Model training completed successfully. User can now login.',
   })
   message: string;
-} 
+}

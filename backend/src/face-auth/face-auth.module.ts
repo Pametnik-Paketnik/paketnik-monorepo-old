@@ -8,7 +8,7 @@ import { FaceAuthService } from './face-auth.service';
   imports: [
     HttpModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         baseURL: configService.get<string>('FACE_AUTH_SERVICE_URL'),
         timeout: configService.get<number>('FACE_AUTH_TIMEOUT'),
       }),
@@ -20,4 +20,4 @@ import { FaceAuthService } from './face-auth.service';
   providers: [FaceAuthService],
   exports: [FaceAuthService],
 })
-export class FaceAuthModule {} 
+export class FaceAuthModule {}

@@ -404,16 +404,17 @@ export class ReservationsService {
 
     // Validate time window (check-in allowed from start of checkinAt date to checkoutAt)
     const now = new Date();
-    const checkinDate = new Date(reservation.checkinAt);
-    const checkinStart = new Date(
-      checkinDate.getFullYear(),
-      checkinDate.getMonth(),
-      checkinDate.getDate(),
-      0,
-      0,
-      0,
-    ); // Start of day
-    const checkinEnd = new Date(reservation.checkoutAt);
+    // Note: Time validation is currently disabled
+    // const checkinDate = new Date(reservation.checkinAt);
+    // const checkinStart = new Date(
+    //   checkinDate.getFullYear(),
+    //   checkinDate.getMonth(),
+    //   checkinDate.getDate(),
+    //   0,
+    //   0,
+    //   0,
+    // ); // Start of day
+    // const checkinEnd = new Date(reservation.checkoutAt);
 
     // if (now < checkinStart || now > checkinEnd) {
     //   throw new BadRequestException(

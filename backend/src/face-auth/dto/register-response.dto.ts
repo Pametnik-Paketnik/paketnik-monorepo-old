@@ -25,4 +25,4 @@ export class RegisterResponseDto {
     example: 'Training started in background. Use /status to check progress.',
   })
   message: string;
-} 
+}

@@ -31,4 +31,4 @@ export class DeleteResponseDto {
     example: 'User data deleted successfully.',
   })
   message: string;
-} 
+}

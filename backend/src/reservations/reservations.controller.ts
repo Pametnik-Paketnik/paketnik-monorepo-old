@@ -26,6 +26,10 @@ import {
 } from '@nestjs/swagger';
 import { Reservation } from './entities/reservation.entity';
 
+interface AuthenticatedRequest extends Request {
+  user: { userId: number; username: string };
+}
+
 @ApiTags('reservations')
 @ApiBearerAuth('access-token')
 @Controller('reservations')
@@ -163,7 +167,10 @@ export class ReservationsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Reservation not found.' })
-  checkin(@Body() checkinDto: CheckinReservationDto, @Req() req: any) {
+  checkin(
+    @Body() checkinDto: CheckinReservationDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.reservationsService.checkin(checkinDto, req.user);
   }
 
@@ -182,7 +189,10 @@ export class ReservationsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Reservation not found.' })
-  checkout(@Body() checkoutDto: CheckoutReservationDto, @Req() req: any) {
+  checkout(
+    @Body() checkoutDto: CheckoutReservationDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.reservationsService.checkout(checkoutDto, req.user);
   }
 
@@ -199,7 +209,10 @@ export class ReservationsController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Reservation not found.' })
-  cancel(@Body() cancelDto: CancelReservationDto, @Req() req: any) {
+  cancel(
+    @Body() cancelDto: CancelReservationDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.reservationsService.cancel(cancelDto.reservationId, req.user);
   }
 }

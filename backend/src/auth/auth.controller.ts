@@ -45,7 +45,7 @@ export class AuthController {
   })
   @ApiResponse({
     status: 409,
-    description: 'Username already exists',
+    description: 'Email already exists',
   })
   async register(@Body() registerDto: RegisterDto): Promise<LoginResponseDto> {
     return this.authService.register(registerDto);
@@ -53,7 +53,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login with username and password' })
+  @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({
     status: 200,
     description: 'Login successful',

@@ -252,4 +252,4 @@ export class FaceAuthController {
     }
     return this.faceAuthService.deleteUser(userId);
   }
-} 
+}

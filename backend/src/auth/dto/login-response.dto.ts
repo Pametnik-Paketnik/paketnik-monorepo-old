@@ -24,13 +24,17 @@ export class LoginResponseDto {
     description: 'User information',
     example: {
       id: 1,
-      username: 'john_doe',
+      name: 'John',
+      surname: 'Doe',
+      email: 'john.doe@example.com',
       userType: 'USER',
     },
   })
   user: {
     id: number;
-    username: string;
+    name: string;
+    surname: string;
+    email: string;
     userType: UserType;
   };
 }

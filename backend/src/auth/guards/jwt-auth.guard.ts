@@ -1,6 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ExecutionContext,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { TokenBlacklistService } from '../services/token-blacklist.service';
+import { Request } from 'express';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -9,10 +14,16 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  handleRequest(err: any, user: any, info: any, context: any) {
-    const request = context.switchToHttp().getRequest();
+  handleRequest<TUser = any>(
+    err: any,
+    user: any,
+    info: any,
+    context: ExecutionContext,
+  ): TUser {
+    const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers.authorization;
-    const token = authHeader?.split(' ')[1];
+    const token =
+      typeof authHeader === 'string' ? authHeader.split(' ')[1] : undefined;
 
     // Check if token is blacklisted (only if service is available)
     if (
@@ -24,8 +35,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     if (err || !user) {
-      throw err || new UnauthorizedException();
+      throw err instanceof Error ? err : new UnauthorizedException();
     }
-    return user;
+    return user as TUser;
   }
 }

@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -24,13 +20,15 @@ export class AuthService {
   async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
     // Create user using the UsersService
     const user = await this.usersService.create({
-      username: registerDto.username,
+      name: registerDto.name,
+      surname: registerDto.surname,
+      email: registerDto.email,
       password: registerDto.password,
       userType: registerDto.userType,
     });
 
     // Generate JWT token
-    const payload = { sub: user.id, username: user.username };
+    const payload = { sub: user.id, email: user.email };
     const token = await this.jwtService.signAsync(payload);
 
     return {
@@ -39,52 +37,49 @@ export class AuthService {
       access_token: token,
       user: {
         id: user.id,
-        username: user.username,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
         userType: user.userType,
       },
     };
   }
 
   async login(loginDto: LoginDto): Promise<LoginResponseDto> {
-    try {
-      // Find user by username
-      const user = await this.usersService.findByUsername(loginDto.username);
+    // Find user by email
+    const user = await this.usersService.findByEmail(loginDto.email);
 
-      // Compare passwords
-      const isPasswordValid = await compare(
-        loginDto.password,
-        user.hashedPassword,
-      );
+    // Compare passwords
+    const isPasswordValid = await compare(
+      loginDto.password,
+      user.hashedPassword,
+    );
 
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid credentials');
-      }
-
-      // Generate JWT token
-      const payload = { sub: user.id, username: user.username };
-      const token = await this.jwtService.signAsync(payload);
-
-      return {
-        success: true,
-        message: 'Login successful',
-        access_token: token,
-        user: {
-          id: user.id,
-          username: user.username,
-          userType: user.userType,
-        },
-      };
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
+    if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // Generate JWT token
+    const payload = { sub: user.id, email: user.email };
+    const token = await this.jwtService.signAsync(payload);
+
+    return {
+      success: true,
+      message: 'Login successful',
+      access_token: token,
+      user: {
+        id: user.id,
+        name: user.name,
+        surname: user.surname,
+        email: user.email,
+        userType: user.userType,
+      },
+    };
   }
   async logout(token: string): Promise<{ success: boolean; message: string }> {
     try {
       // Verify token is valid before blacklisting
-      const payload = await this.jwtService.verifyAsync(token);
+      await this.jwtService.verifyAsync(token);
 
       // Add token to blacklist
       this.tokenBlacklistService.addToken(token);
@@ -93,7 +88,7 @@ export class AuthService {
         success: true,
         message: 'Logout successful',
       };
-    } catch (error) {
+    } catch {
       // Even if token is invalid, consider logout successful
       return {
         success: true,
@@ -101,7 +96,7 @@ export class AuthService {
       };
     }
   }
-  validate(payload: { sub: number; username: string }) {
-    return { userId: payload.sub, username: payload.username };
+  validate(payload: { sub: number; email: string }) {
+    return { userId: payload.sub, email: payload.email };
   }
 }

@@ -21,11 +21,13 @@ export class FaceAuthService {
     files: Express.Multer.File[],
   ): Promise<RegisterResponseDto> {
     try {
-      this.logger.log(`Registering face for user ${userId} with ${files.length} images`);
+      this.logger.log(
+        `Registering face for user ${userId} with ${files.length} images`,
+      );
 
       // Create FormData to send files
       const formData = new FormData();
-      
+
       for (const file of files) {
         const blob = new Blob([file.buffer], { type: file.mimetype });
         formData.append('files', blob, file.originalname);
@@ -42,9 +44,9 @@ export class FaceAuthService {
       );
 
       this.logger.log(`Face registration successful for user ${userId}`);
-      return response.data;
+      return response.data as RegisterResponseDto;
     } catch (error) {
-      this.handleError('registerFace', error, userId);
+      return this.handleError('registerFace', error, userId);
     }
   }
 
@@ -74,11 +76,11 @@ export class FaceAuthService {
       );
 
       this.logger.log(
-        `Face verification result for user ${userId}: ${response.data.authenticated}`,
+        `Face verification result for user ${userId}: ${(response.data as VerifyResponseDto).authenticated}`,
       );
-      return response.data;
+      return response.data as VerifyResponseDto;
     } catch (error) {
-      this.handleError('verifyFace', error, userId);
+      return this.handleError('verifyFace', error, userId);
     }
   }
 
@@ -97,9 +99,9 @@ export class FaceAuthService {
         }),
       );
 
-      return response.data;
+      return response.data as StatusResponseDto;
     } catch (error) {
-      this.handleError('getStatus', error, userId);
+      return this.handleError('getStatus', error, userId);
     }
   }
 
@@ -118,26 +120,33 @@ export class FaceAuthService {
         }),
       );
 
-      this.logger.log(`Face data deletion result for user ${userId}: ${response.data.status}`);
-      return response.data;
+      this.logger.log(
+        `Face data deletion result for user ${userId}: ${(response.data as DeleteResponseDto).status}`,
+      );
+      return response.data as DeleteResponseDto;
     } catch (error) {
-      this.handleError('deleteUser', error, userId);
+      return this.handleError('deleteUser', error, userId);
     }
   }
 
   /**
    * Handle errors from face-auth-service
    */
-  private handleError(operation: string, error: any, userId?: string): never {
+  private handleError(
+    operation: string,
+    error: unknown,
+    userId?: string,
+  ): never {
     const context = userId ? `for user ${userId}` : '';
-    
+
     if (error instanceof AxiosError) {
       const status = error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
-      const message = error.response?.data?.detail || error.message;
-      
+      const message =
+        (error.response?.data as { detail?: string })?.detail || error.message;
+
       this.logger.error(
         `${operation} failed ${context}: ${status} - ${message}`,
-        error.stack,
+        error instanceof Error ? error.stack : undefined,
       );
 
       // Map face-auth-service errors to appropriate HTTP status codes
@@ -158,10 +167,13 @@ export class FaceAuthService {
       }
     }
 
-    this.logger.error(`${operation} failed ${context}:`, error.stack);
+    this.logger.error(
+      `${operation} failed ${context}:`,
+      error instanceof Error ? error.stack : String(error),
+    );
     throw new HttpException(
       'Internal server error',
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
-} 
+}
