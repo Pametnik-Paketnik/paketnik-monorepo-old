@@ -5,19 +5,9 @@ __pycache__/
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
+.eggs/
 *.egg
 
 # Virtual Environment
@@ -29,21 +19,14 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDE
+# IDE and Editor files
 .idea/
 .vscode/
 *.swp
 *.swo
 .DS_Store
 
-# Face Auth specific
-*.jpg
-*.jpeg
-*.png
-*.gif
-*.bmp
-*.tiff
-*.webp
+# Machine Learning and Face Recognition specific
 face_encodings/
 face_database/
 *.pkl
@@ -51,31 +34,38 @@ face_database/
 *.model
 *.weights
 
-# Logs
+# Logs and Temporary files
 *.log
 logs/
 log/
+.cache/
 
-# Local development
+# Development and local configs
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 .env.dev
-.env
+.env.template
 
-# Coverage reports
+# Testing and Coverage
 htmlcov/
 .tox/
 .coverage
 .coverage.*
-.cache
-nosetests.xml
 coverage.xml
 *.cover
-.hypothesis/ 
+.hypothesis/
 
-./testing
-/testing/
+# Git
+.git
+.gitignore
 
-/data/
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Misc
+.pytest_cache/
+.mypy_cache/ 

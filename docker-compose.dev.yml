@@ -3,34 +3,58 @@ services:
     depends_on:
       - db
       - minio
+      - faceauth
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     # HOT RELOADING - ENABLE BY UNCOMMENTING:
-    volumes:
-      - ./backend:/app         # Mount local source code for live reload
-      - /app/node_modules      # Keep container's node_modules
+    # volumes:
+    #   - ./backend:/app         # Mount local source code for live reload
+    #   - /app/node_modules      # Keep container's node_modules
     env_file:
       - ./backend/.env.dev
-    command: pnpm start:dev
+    networks:
+      - default
+      - internal
 
-  # frontend:
-  #   depends_on:
-  #     - backend
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile.dev
-  #   ports:
-  #     - "5173:5173"
-  #   # HOT RELOADING - ENABLE BY UNCOMMENTING:
-  #   # volumes:
-  #   #   - ./frontend:/app # Mount local source code for live reload
-  #   #   - /app/node_modules # Keep container's node_modules
-  #   env_file:
-  #     - ./frontend/.env.dev
-  #   command: pnpm dev --host
+  frontend:
+    depends_on:
+      - backend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    # HOT RELOADING - ENABLE BY UNCOMMENTING:
+    # volumes:
+    #   - ./frontend:/app # Mount local source code for live reload
+    #   - /app/node_modules # Keep container's node_modules
+    env_file:
+      - ./frontend/.env.dev
+
+  faceauth:
+    build:
+      context: ./face-auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./face-auth-service:/app
+      - ./face-auth-service/data:/app/data
+    env_file:
+      - ./backend/.env.dev
+    networks:
+      - default
+      - internal
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   db:
     image: postgres:15
@@ -69,8 +93,15 @@ services:
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
+    networks:
+      - default
+      - internal
 
 volumes:
   pgdata:
   pgadmin-data:
-  minio-data: 
+  minio-data:
+
+networks:
+  internal:
+    internal: true 

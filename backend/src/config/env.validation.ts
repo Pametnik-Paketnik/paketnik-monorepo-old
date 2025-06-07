@@ -13,7 +13,7 @@ export const envValidationSchema = Joi.object({
 
   // JWT
   JWT_SECRET: Joi.string().required(),
-  JWT_EXPIRATION: Joi.string().default('1h'),
+  JWT_EXPIRATION: Joi.string().default('6h'),
 
   // Direct4me
   DIRECT4ME_TOKEN: Joi.string().required(),
@@ -27,4 +27,8 @@ export const envValidationSchema = Joi.object({
   MINIO_ACCESS_KEY: Joi.string().required(),
   MINIO_SECRET_KEY: Joi.string().required(),
   MINIO_USE_SSL: Joi.boolean().default(false),
+
+  // Face Auth microservice
+  FACE_AUTH_SERVICE_URL: Joi.string().required(),
+  FACE_AUTH_TIMEOUT: Joi.number().default(30000),
 });
