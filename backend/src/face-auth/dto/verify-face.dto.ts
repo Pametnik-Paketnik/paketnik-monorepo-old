@@ -10,4 +10,4 @@ export class VerifyFaceDto {
   })
   @IsNotEmpty()
   file: Express.Multer.File;
-} 
+}

@@ -20,4 +20,4 @@ export class VerifyResponseDto {
     maximum: 1,
   })
   probability: number;
-} 
+}

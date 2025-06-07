@@ -8,7 +8,8 @@ export class RegisterFaceDto {
       type: 'string',
       format: 'binary',
     },
-    description: 'Array of face image files for training (recommended: 20-60 images)',
+    description:
+      'Array of face image files for training (recommended: 20-60 images)',
     minItems: 1,
     example: ['file1.jpg', 'file2.jpg', '...'],
   })
@@ -16,4 +17,4 @@ export class RegisterFaceDto {
   @ArrayMinSize(1, { message: 'At least one image file is required' })
   @IsNotEmpty()
   files: Express.Multer.File[];
-} 
+}

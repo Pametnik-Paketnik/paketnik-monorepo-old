@@ -21,11 +21,13 @@ export class FaceAuthService {
     files: Express.Multer.File[],
   ): Promise<RegisterResponseDto> {
     try {
-      this.logger.log(`Registering face for user ${userId} with ${files.length} images`);
+      this.logger.log(
+        `Registering face for user ${userId} with ${files.length} images`,
+      );
 
       // Create FormData to send files
       const formData = new FormData();
-      
+
       for (const file of files) {
         const blob = new Blob([file.buffer], { type: file.mimetype });
         formData.append('files', blob, file.originalname);
@@ -118,7 +120,9 @@ export class FaceAuthService {
         }),
       );
 
-      this.logger.log(`Face data deletion result for user ${userId}: ${response.data.status}`);
+      this.logger.log(
+        `Face data deletion result for user ${userId}: ${response.data.status}`,
+      );
       return response.data;
     } catch (error) {
       this.handleError('deleteUser', error, userId);
@@ -130,11 +134,11 @@ export class FaceAuthService {
    */
   private handleError(operation: string, error: any, userId?: string): never {
     const context = userId ? `for user ${userId}` : '';
-    
+
     if (error instanceof AxiosError) {
       const status = error.response?.status || HttpStatus.INTERNAL_SERVER_ERROR;
       const message = error.response?.data?.detail || error.message;
-      
+
       this.logger.error(
         `${operation} failed ${context}: ${status} - ${message}`,
         error.stack,
@@ -164,4 +168,4 @@ export class FaceAuthService {
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
-} 
+}

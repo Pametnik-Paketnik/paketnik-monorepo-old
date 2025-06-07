@@ -11,6 +11,8 @@ import { BoxesModule } from './boxes/boxes.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { StorageModule } from './storage/storage.module';
 import { FaceAuthModule } from './face-auth/face-auth.module';
+import { InventoryItemsModule } from './inventory-items/inventory-items.module';
+import { ExtraOrdersModule } from './extra-orders/extra-orders.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { FaceAuthModule } from './face-auth/face-auth.module';
     FaceAuthModule,
     BoxesModule,
     ReservationsModule,
+    InventoryItemsModule,
+    ExtraOrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

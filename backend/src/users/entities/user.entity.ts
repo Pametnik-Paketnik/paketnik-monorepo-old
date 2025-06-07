@@ -10,6 +10,7 @@ import { Exclude } from 'class-transformer';
 export enum UserType {
   USER = 'USER',
   HOST = 'HOST',
+  CLEANER = 'CLEANER',
 }
 
 @Entity('users')

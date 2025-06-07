@@ -20,4 +20,4 @@ import { FaceAuthService } from './face-auth.service';
   providers: [FaceAuthService],
   exports: [FaceAuthService],
 })
-export class FaceAuthModule {} 
+export class FaceAuthModule {}
