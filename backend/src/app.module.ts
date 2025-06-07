@@ -13,6 +13,7 @@ import { StorageModule } from './storage/storage.module';
 import { FaceAuthModule } from './face-auth/face-auth.module';
 import { InventoryItemsModule } from './inventory-items/inventory-items.module';
 import { ExtraOrdersModule } from './extra-orders/extra-orders.module';
+import { CleanersModule } from './cleaners/cleaners.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ExtraOrdersModule } from './extra-orders/extra-orders.module';
     ReservationsModule,
     InventoryItemsModule,
     ExtraOrdersModule,
+    CleanersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

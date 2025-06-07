@@ -194,12 +194,44 @@ export class ExtraOrdersService {
     });
   }
 
+  async findPendingOrdersForCleaner(cleanerId: number): Promise<ExtraOrder[]> {
+    // Validate that the user is a cleaner and get their host
+    const cleaner = await this.usersRepository.findOne({
+      where: { id: cleanerId, userType: UserType.CLEANER },
+      relations: ['host'],
+    });
+
+    if (!cleaner) {
+      throw new NotFoundException(`Cleaner with ID ${cleanerId} not found`);
+    }
+
+    if (!cleaner.host) {
+      throw new BadRequestException('Cleaner must be assigned to a host');
+    }
+
+    // Find pending orders for inventory items owned by the cleaner's host
+    return this.extraOrdersRepository.find({
+      where: {
+        status: ExtraOrderStatus.PENDING,
+        inventoryItem: { host: { id: cleaner.host.id } },
+      },
+      relations: [
+        'reservation',
+        'inventoryItem',
+        'inventoryItem.host',
+        'reservation.guest',
+        'reservation.host',
+      ],
+    });
+  }
+
   async findOne(id: number): Promise<ExtraOrder> {
     const extraOrder = await this.extraOrdersRepository.findOne({
       where: { id },
       relations: [
         'reservation',
         'inventoryItem',
+        'inventoryItem.host',
         'fulfilledBy',
         'reservation.guest',
         'reservation.host',
@@ -218,20 +250,28 @@ export class ExtraOrdersService {
     fulfillDto: FulfillExtraOrderDto,
     cleanerId: number,
   ): Promise<ExtraOrder> {
-    // Validate that the user is a cleaner
+    // Validate that the user is a cleaner and get their host
     const cleaner = await this.usersRepository.findOne({
-      where: { id: cleanerId },
+      where: { id: cleanerId, userType: UserType.CLEANER },
+      relations: ['host'],
     });
 
     if (!cleaner) {
-      throw new NotFoundException(`User with ID ${cleanerId} not found`);
+      throw new NotFoundException(`Cleaner with ID ${cleanerId} not found`);
     }
 
-    if (cleaner.userType !== UserType.CLEANER) {
-      throw new BadRequestException('Only cleaners can fulfill extra orders');
+    if (!cleaner.host) {
+      throw new BadRequestException('Cleaner must be assigned to a host');
     }
 
     const extraOrder = await this.findOne(id);
+
+    // Verify that the cleaner's host owns the inventory item
+    if (extraOrder.inventoryItem.host.id !== cleaner.host.id) {
+      throw new ForbiddenException(
+        "You can only fulfill orders for your host's inventory items",
+      );
+    }
 
     if (extraOrder.status !== ExtraOrderStatus.PENDING) {
       throw new BadRequestException(
@@ -246,29 +286,73 @@ export class ExtraOrdersService {
       extraOrder.notes = fulfillDto.notes;
     }
 
+    // Update reservation total price
+    const reservation = extraOrder.reservation;
+    if (reservation.totalPrice) {
+      reservation.totalPrice =
+        Number(reservation.totalPrice) + Number(extraOrder.totalPrice);
+    } else {
+      reservation.totalPrice = Number(extraOrder.totalPrice);
+    }
+    await this.reservationsRepository.save(reservation);
+
     return await this.extraOrdersRepository.save(extraOrder);
   }
 
   async cancel(id: number, userId: number): Promise<ExtraOrder> {
     const extraOrder = await this.findOne(id);
 
-    // Only the guest who placed the order can cancel it
-    if (extraOrder.reservation.guest.id !== userId) {
-      throw new ForbiddenException('You can only cancel your own orders');
+    // Get user information to determine if they can cancel
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: ['host'],
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    if (extraOrder.status !== ExtraOrderStatus.PENDING) {
-      throw new BadRequestException(
-        `Cannot cancel order with status: ${extraOrder.status}`,
+    // Check if user can cancel this order
+    const canCancel =
+      // Guest who placed the order can cancel
+      extraOrder.reservation.guest.id === userId ||
+      // Cleaner who belongs to the host can cancel
+      (user.userType === UserType.CLEANER &&
+        user.host &&
+        user.host.id === extraOrder.inventoryItem.host.id);
+
+    if (!canCancel) {
+      throw new ForbiddenException(
+        "You can only cancel your own orders or orders for your host's inventory items",
       );
     }
 
+    if (extraOrder.status === ExtraOrderStatus.CANCELLED) {
+      throw new BadRequestException('Order is already cancelled');
+    }
+
+    const wasAlreadyFulfilled =
+      extraOrder.status === ExtraOrderStatus.FULFILLED;
     extraOrder.status = ExtraOrderStatus.CANCELLED;
 
     // Restore stock if tracking stock
     if (extraOrder.inventoryItem.stockQuantity >= 0) {
       extraOrder.inventoryItem.stockQuantity += extraOrder.quantity;
       await this.inventoryItemsRepository.save(extraOrder.inventoryItem);
+    }
+
+    // If the order was already fulfilled, subtract its price from reservation total
+    if (wasAlreadyFulfilled) {
+      const reservation = extraOrder.reservation;
+      if (reservation.totalPrice) {
+        reservation.totalPrice =
+          Number(reservation.totalPrice) - Number(extraOrder.totalPrice);
+        // Ensure totalPrice doesn't go below 0
+        if (reservation.totalPrice < 0) {
+          reservation.totalPrice = 0;
+        }
+        await this.reservationsRepository.save(reservation);
+      }
     }
 
     return await this.extraOrdersRepository.save(extraOrder);

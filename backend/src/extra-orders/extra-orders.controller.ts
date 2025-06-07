@@ -107,7 +107,7 @@ export class ExtraOrdersController {
   }
 
   @Get('pending')
-  @ApiOperation({ summary: 'Get all pending extra orders (for cleaners)' })
+  @ApiOperation({ summary: 'Get all pending extra orders (admin view)' })
   @ApiResponse({
     status: 200,
     description: 'Return all pending extra orders.',
@@ -116,6 +116,30 @@ export class ExtraOrdersController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   findPendingOrders() {
     return this.extraOrdersService.findPendingOrders();
+  }
+
+  @Get('pending/my-orders')
+  @ApiOperation({
+    summary: 'Get pending extra orders for the authenticated cleaner',
+    description:
+      "Cleaners can view pending orders for their host's inventory items",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Return pending extra orders for the cleaner's host.",
+    type: [ExtraOrder],
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Only cleaners can access this endpoint.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Cleaner not found or not assigned to a host.',
+  })
+  findMyPendingOrders(@Req() req: AuthenticatedRequest) {
+    return this.extraOrdersService.findPendingOrdersForCleaner(req.user.userId);
   }
 
   @Get('reservation/:reservationId')
@@ -194,7 +218,11 @@ export class ExtraOrdersController {
   }
 
   @Patch(':id/cancel')
-  @ApiOperation({ summary: 'Cancel an extra order (guest only)' })
+  @ApiOperation({
+    summary: 'Cancel an extra order',
+    description:
+      "Guests can cancel their own orders. Cleaners can cancel orders for their host's inventory items.",
+  })
   @ApiResponse({
     status: 200,
     description: 'The extra order has been successfully cancelled.',
@@ -204,7 +232,8 @@ export class ExtraOrdersController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({
     status: 403,
-    description: 'You can only cancel your own orders.',
+    description:
+      "You can only cancel your own orders or orders for your host's inventory items.",
   })
   @ApiResponse({ status: 404, description: 'Extra order not found.' })
   cancel(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
