@@ -3,13 +3,14 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Reservation } from '../../reservations/entities/reservation.entity';
-import { InventoryItem } from '../../inventory-items/entities/inventory-item.entity';
+import { ExtraOrderItem } from './extra-order-item.entity';
 
 export enum ExtraOrderStatus {
   PENDING = 'PENDING',
@@ -26,17 +27,8 @@ export class ExtraOrder {
   @JoinColumn({ name: 'reservation_id' })
   reservation: Reservation;
 
-  @ManyToOne(() => InventoryItem, (item) => item.orders, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'inventory_item_id' })
-  inventoryItem: InventoryItem;
-
-  @Column({ default: 1 })
-  quantity: number;
-
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  unitPrice: number;
+  @OneToMany(() => ExtraOrderItem, (item) => item.extraOrder, { cascade: true })
+  items: ExtraOrderItem[];
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   totalPrice: number;

@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { CreateExtraOrderDto } from './dto/create-extra-order.dto';
 import { FulfillExtraOrderDto } from './dto/fulfill-extra-order.dto';
 import { ExtraOrder, ExtraOrderStatus } from './entities/extra-order.entity';
+import { ExtraOrderItem } from './entities/extra-order-item.entity';
 import { User, UserType } from '../users/entities/user.entity';
 import {
   Reservation,
@@ -21,6 +22,8 @@ export class ExtraOrdersService {
   constructor(
     @InjectRepository(ExtraOrder)
     private extraOrdersRepository: Repository<ExtraOrder>,
+    @InjectRepository(ExtraOrderItem)
+    private extraOrderItemsRepository: Repository<ExtraOrderItem>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @InjectRepository(Reservation)
@@ -71,67 +74,96 @@ export class ExtraOrdersService {
       );
     }
 
-    // Validate inventory item exists and belongs to the host
-    const inventoryItem = await this.inventoryItemsRepository.findOne({
-      where: { id: createExtraOrderDto.inventoryItemId },
-      relations: ['host'],
-    });
+    // Validate all inventory items and calculate total
+    let totalOrderPrice = 0;
+    const inventoryItems: { item: InventoryItem; quantity: number }[] = [];
 
-    if (!inventoryItem) {
-      throw new NotFoundException(
-        `Inventory item with ID ${createExtraOrderDto.inventoryItemId} not found`,
-      );
+    for (const orderItem of createExtraOrderDto.items) {
+      const inventoryItem = await this.inventoryItemsRepository.findOne({
+        where: { id: orderItem.inventoryItemId },
+        relations: ['host'],
+      });
+
+      if (!inventoryItem) {
+        throw new NotFoundException(
+          `Inventory item with ID ${orderItem.inventoryItemId} not found`,
+        );
+      }
+
+      if (inventoryItem.host.id !== reservation.host.id) {
+        throw new BadRequestException(
+          'You can only order items from your reservation host',
+        );
+      }
+
+      if (!inventoryItem.isAvailable) {
+        throw new BadRequestException(
+          `Inventory item "${inventoryItem.name}" is not available`,
+        );
+      }
+
+      // Check if there's enough stock
+      if (
+        inventoryItem.stockQuantity > 0 &&
+        inventoryItem.stockQuantity < orderItem.quantity
+      ) {
+        throw new BadRequestException(
+          `Not enough stock available for "${inventoryItem.name}". Available: ${inventoryItem.stockQuantity}, Requested: ${orderItem.quantity}`,
+        );
+      }
+
+      const itemTotal = Number(inventoryItem.price) * orderItem.quantity;
+      totalOrderPrice += itemTotal;
+
+      inventoryItems.push({
+        item: inventoryItem,
+        quantity: orderItem.quantity,
+      });
     }
 
-    if (inventoryItem.host.id !== reservation.host.id) {
-      throw new BadRequestException(
-        'You can only order items from your reservation host',
-      );
-    }
-
-    if (!inventoryItem.isAvailable) {
-      throw new BadRequestException('This inventory item is not available');
-    }
-
-    const quantity = createExtraOrderDto.quantity || 1;
-
-    // Check if there's enough stock
-    if (
-      inventoryItem.stockQuantity > 0 &&
-      inventoryItem.stockQuantity < quantity
-    ) {
-      throw new BadRequestException(
-        `Not enough stock available. Available: ${inventoryItem.stockQuantity}, Requested: ${quantity}`,
-      );
-    }
-
-    const unitPrice = inventoryItem.price;
-    const totalPrice = unitPrice * quantity;
-
+    // Create the extra order
     const extraOrder = this.extraOrdersRepository.create({
       reservation,
-      inventoryItem,
-      quantity,
-      unitPrice,
-      totalPrice,
+      totalPrice: totalOrderPrice,
       notes: createExtraOrderDto.notes,
       status: ExtraOrderStatus.PENDING,
     });
 
-    // Update stock quantity if tracking stock
-    if (inventoryItem.stockQuantity > 0) {
-      inventoryItem.stockQuantity -= quantity;
-      await this.inventoryItemsRepository.save(inventoryItem);
+    const savedOrder = await this.extraOrdersRepository.save(extraOrder);
+
+    // Create order items and update stock
+    for (let i = 0; i < inventoryItems.length; i++) {
+      const { item, quantity } = inventoryItems[i];
+      const unitPrice = Number(item.price);
+      const totalPrice = unitPrice * quantity;
+
+      const orderItem = this.extraOrderItemsRepository.create({
+        extraOrder: savedOrder,
+        inventoryItem: item,
+        quantity,
+        unitPrice,
+        totalPrice,
+      });
+
+      await this.extraOrderItemsRepository.save(orderItem);
+
+      // Update stock quantity if tracking stock
+      if (item.stockQuantity > 0) {
+        item.stockQuantity -= quantity;
+        await this.inventoryItemsRepository.save(item);
+      }
     }
 
-    return await this.extraOrdersRepository.save(extraOrder);
+    // Return the order with items included
+    return this.findOne(savedOrder.id);
   }
 
   async findAll(): Promise<ExtraOrder[]> {
     return this.extraOrdersRepository.find({
       relations: [
         'reservation',
-        'inventoryItem',
+        'items',
+        'items.inventoryItem',
         'fulfilledBy',
         'reservation.guest',
         'reservation.host',
@@ -174,7 +206,8 @@ export class ExtraOrdersService {
       where: { reservation: { id: reservationId } },
       relations: [
         'reservation',
-        'inventoryItem',
+        'items',
+        'items.inventoryItem',
         'fulfilledBy',
         'reservation.guest',
         'reservation.host',
@@ -187,7 +220,8 @@ export class ExtraOrdersService {
       where: { status: ExtraOrderStatus.PENDING },
       relations: [
         'reservation',
-        'inventoryItem',
+        'items',
+        'items.inventoryItem',
         'reservation.guest',
         'reservation.host',
       ],
@@ -213,12 +247,13 @@ export class ExtraOrdersService {
     return this.extraOrdersRepository.find({
       where: {
         status: ExtraOrderStatus.PENDING,
-        inventoryItem: { host: { id: cleaner.host.id } },
+        items: { inventoryItem: { host: { id: cleaner.host.id } } },
       },
       relations: [
         'reservation',
-        'inventoryItem',
-        'inventoryItem.host',
+        'items',
+        'items.inventoryItem',
+        'items.inventoryItem.host',
         'reservation.guest',
         'reservation.host',
       ],
@@ -230,8 +265,9 @@ export class ExtraOrdersService {
       where: { id },
       relations: [
         'reservation',
-        'inventoryItem',
-        'inventoryItem.host',
+        'items',
+        'items.inventoryItem',
+        'items.inventoryItem.host',
         'fulfilledBy',
         'reservation.guest',
         'reservation.host',
@@ -266,11 +302,13 @@ export class ExtraOrdersService {
 
     const extraOrder = await this.findOne(id);
 
-    // Verify that the cleaner's host owns the inventory item
-    if (extraOrder.inventoryItem.host.id !== cleaner.host.id) {
-      throw new ForbiddenException(
-        "You can only fulfill orders for your host's inventory items",
-      );
+    // Verify that the cleaner's host owns all inventory items in the order
+    for (const orderItem of extraOrder.items) {
+      if (orderItem.inventoryItem.host.id !== cleaner.host.id) {
+        throw new ForbiddenException(
+          "You can only fulfill orders for your host's inventory items",
+        );
+      }
     }
 
     if (extraOrder.status !== ExtraOrderStatus.PENDING) {
@@ -319,7 +357,9 @@ export class ExtraOrdersService {
       // Cleaner who belongs to the host can cancel
       (user.userType === UserType.CLEANER &&
         user.host &&
-        user.host.id === extraOrder.inventoryItem.host.id);
+        extraOrder.items.some(
+          (item) => item.inventoryItem.host.id === user.host.id,
+        ));
 
     if (!canCancel) {
       throw new ForbiddenException(
@@ -335,10 +375,12 @@ export class ExtraOrdersService {
       extraOrder.status === ExtraOrderStatus.FULFILLED;
     extraOrder.status = ExtraOrderStatus.CANCELLED;
 
-    // Restore stock if tracking stock
-    if (extraOrder.inventoryItem.stockQuantity >= 0) {
-      extraOrder.inventoryItem.stockQuantity += extraOrder.quantity;
-      await this.inventoryItemsRepository.save(extraOrder.inventoryItem);
+    // Restore stock for all items
+    for (const orderItem of extraOrder.items) {
+      if (orderItem.inventoryItem.stockQuantity >= 0) {
+        orderItem.inventoryItem.stockQuantity += orderItem.quantity;
+        await this.inventoryItemsRepository.save(orderItem.inventoryItem);
+      }
     }
 
     // If the order was already fulfilled, subtract its price from reservation total

@@ -167,7 +167,10 @@ export class FaceAuthService {
       }
     }
 
-    this.logger.error(`${operation} failed ${context}:`, error.stack);
+    this.logger.error(
+      `${operation} failed ${context}:`,
+      error instanceof Error ? error.stack : String(error),
+    );
     throw new HttpException(
       'Internal server error',
       HttpStatus.INTERNAL_SERVER_ERROR,

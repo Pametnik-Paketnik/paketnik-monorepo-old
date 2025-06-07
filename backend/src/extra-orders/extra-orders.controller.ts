@@ -37,36 +37,62 @@ export class ExtraOrdersController {
     summary: 'Create a new extra order (guests only, after check-in)',
   })
   @ApiBody({
-    description: 'Extra order creation data',
+    description: 'Bulk extra order creation data',
     examples: {
-      toiletPaper: {
-        summary: 'Order Toilet Paper',
-        description: 'Example of ordering toilet paper for a reservation',
+      singleItem: {
+        summary: 'Order Single Item',
+        description: 'Example of ordering one type of item',
         value: {
           reservationId: 123,
-          inventoryItemId: 45,
-          quantity: 2,
+          items: [
+            {
+              inventoryItemId: 45,
+              quantity: 2,
+            },
+          ],
           notes: 'Please deliver to room 101',
         },
       },
-      carpet: {
-        summary: 'Order Bathroom Carpet',
-        description: 'Example of ordering a bathroom carpet',
+      multipleItems: {
+        summary: 'Order Multiple Items (Bulk)',
+        description:
+          'Example of ordering multiple different items in one order',
         value: {
           reservationId: 123,
-          inventoryItemId: 67,
-          quantity: 1,
-          notes: 'For the main bathroom',
+          items: [
+            {
+              inventoryItemId: 45,
+              quantity: 2,
+            },
+            {
+              inventoryItemId: 67,
+              quantity: 1,
+            },
+            {
+              inventoryItemId: 89,
+              quantity: 3,
+            },
+          ],
+          notes:
+            'Bulk order for extended stay - toilet paper, carpet, and towels',
         },
       },
-      towels: {
-        summary: 'Order Towel Set',
-        description: 'Example of ordering additional towels',
+      towelsAndCarpet: {
+        summary: 'Order Towels and Carpet',
+        description: 'Example of ordering towels and bathroom carpet together',
         value: {
           reservationId: 123,
-          inventoryItemId: 89,
-          quantity: 1,
-          notes: 'Extra towels for extended stay',
+          items: [
+            {
+              inventoryItemId: 89,
+              quantity: 1,
+            },
+            {
+              inventoryItemId: 67,
+              quantity: 1,
+            },
+          ],
+          notes: 'For the main bathroom setup',
         },
       },
     },

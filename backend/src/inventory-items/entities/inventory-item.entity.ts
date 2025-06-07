@@ -9,7 +9,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { ExtraOrder } from '../../extra-orders/entities/extra-order.entity';
+import { ExtraOrderItem } from '../../extra-orders/entities/extra-order-item.entity';
 
 @Entity('inventory_items')
 export class InventoryItem {
@@ -35,8 +35,8 @@ export class InventoryItem {
   @JoinColumn({ name: 'host_id' })
   host: User;
 
-  @OneToMany(() => ExtraOrder, (order) => order.inventoryItem)
-  orders: ExtraOrder[];
+  @OneToMany(() => ExtraOrderItem, (orderItem) => orderItem.inventoryItem)
+  orderItems: ExtraOrderItem[];
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
