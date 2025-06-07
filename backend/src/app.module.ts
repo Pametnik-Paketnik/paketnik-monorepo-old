@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { BoxesModule } from './boxes/boxes.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { StorageModule } from './storage/storage.module';
+import { FaceAuthModule } from './face-auth/face-auth.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { StorageModule } from './storage/storage.module';
     StorageModule,
     UsersModule,
     AuthModule,
+    FaceAuthModule,
     BoxesModule,
     ReservationsModule,
   ],

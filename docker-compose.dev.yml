@@ -38,14 +38,15 @@ services:
     build:
       context: ./face-auth-service
       dockerfile: Dockerfile
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     volumes:
       - ./face-auth-service:/app
       - ./face-auth-service/data:/app/data
     env_file:
       - ./backend/.env.dev
     networks:
+      - default
       - internal
     deploy:
       resources:
