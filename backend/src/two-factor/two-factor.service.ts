@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { authenticator } from 'otplib';
 import { User } from '../users/entities/user.entity';
 import { SetupTotpResponseDto } from './dto/setup-totp-response.dto';
+import { CryptoService } from '../common/services/crypto.service';
 
 @Injectable()
 export class TwoFactorService {
@@ -16,6 +17,7 @@ export class TwoFactorService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     private configService: ConfigService,
+    private cryptoService: CryptoService,
   ) {}
 
   async setupTotp(userId: number): Promise<SetupTotpResponseDto> {
@@ -27,11 +29,12 @@ export class TwoFactorService {
     // Generate a new secret
     const secret: string = authenticator.generateSecret();
 
-    // Save the secret to the user (but don't enable 2FA yet)
-    user.totpSecret = secret;
+    // Encrypt the secret before storing
+    const encryptedSecret = this.cryptoService.encrypt(secret);
+    user.totpSecret = encryptedSecret;
     await this.usersRepository.save(user);
 
-    // Create the OTP Auth URL for QR code
+    // Create the OTP Auth URL for QR code (use plain secret)
     const appName: string =
       this.configService.get<string>('APP_NAME') ?? 'Paketnik App';
     const qrCodeUri = authenticator.keyuri(user.email, appName, secret);
@@ -52,8 +55,11 @@ export class TwoFactorService {
       throw new BadRequestException('TOTP setup not initiated');
     }
 
+    // Decrypt the secret for verification
+    const decryptedSecret = this.cryptoService.decrypt(user.totpSecret);
+
     // Verify the code
-    const isValid = authenticator.check(code, user.totpSecret);
+    const isValid = authenticator.check(code, decryptedSecret);
 
     if (!isValid) {
       throw new BadRequestException('Invalid TOTP code');
@@ -75,7 +81,14 @@ export class TwoFactorService {
       return false;
     }
 
-    return authenticator.check(code, user.totpSecret);
+    try {
+      // Decrypt the secret for verification
+      const decryptedSecret = this.cryptoService.decrypt(user.totpSecret);
+      return authenticator.check(code, decryptedSecret);
+    } catch {
+      // If decryption fails, return false
+      return false;
+    }
   }
 
   async disableTotp(
