@@ -15,13 +15,29 @@ export class LoginResponseDto {
   message: string;
 
   @ApiProperty({
-    description: 'JWT access token',
+    description: 'JWT access token (only present when 2FA is not required)',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    required: false,
   })
-  access_token: string;
+  access_token?: string;
 
   @ApiProperty({
-    description: 'User information',
+    description: 'Whether 2FA is required for this user',
+    example: false,
+    required: false,
+  })
+  twoFactorRequired?: boolean;
+
+  @ApiProperty({
+    description:
+      'Temporary token for 2FA verification (only when 2FA is required)',
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+    required: false,
+  })
+  tempToken?: string;
+
+  @ApiProperty({
+    description: 'User information (only present when login is complete)',
     example: {
       id: 1,
       name: 'John',
@@ -29,8 +45,9 @@ export class LoginResponseDto {
       email: 'john.doe@example.com',
       userType: 'USER',
     },
+    required: false,
   })
-  user: {
+  user?: {
     id: number;
     name: string;
     surname: string;
