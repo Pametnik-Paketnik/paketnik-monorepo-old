@@ -42,6 +42,14 @@ export class User {
   })
   userType: UserType;
 
+  // TOTP/2FA fields
+  @Column({ name: 'totp_secret', type: 'varchar', nullable: true })
+  @Exclude()
+  totpSecret: string | null;
+
+  @Column({ name: 'two_factor_enabled', default: false })
+  twoFactorEnabled: boolean;
+
   // Relationship: Each cleaner belongs to exactly one host
   @ManyToOne(() => User, (user) => user.cleaners, { nullable: true })
   @JoinColumn({ name: 'host_id' })

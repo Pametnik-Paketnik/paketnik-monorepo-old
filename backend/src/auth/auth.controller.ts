@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { LogoutResponseDto } from './dto/logout-response.dto';
+import { TwoFactorLoginDto } from '../two-factor/dto/two-factor-login.dto';
 import {
   ApiOperation,
   ApiResponse,
@@ -56,7 +57,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({
     status: 200,
-    description: 'Login successful',
+    description: 'Login successful or 2FA required',
     type: LoginResponseDto,
   })
   @ApiResponse({
@@ -65,6 +66,24 @@ export class AuthController {
   })
   async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
     return this.authService.login(loginDto);
+  }
+
+  @Post('2fa/login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Complete login with 2FA code verification' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful after 2FA verification',
+    type: LoginResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid temporary token or 2FA code',
+  })
+  async verifyTwoFactorLogin(
+    @Body() twoFactorLoginDto: TwoFactorLoginDto,
+  ): Promise<LoginResponseDto> {
+    return this.authService.verifyTwoFactorLogin(twoFactorLoginDto);
   }
 
   @Post('logout')

@@ -10,18 +10,18 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TokenBlacklistService } from './services/token-blacklist.service';
+import { TwoFactorModule } from '../two-factor/two-factor.module';
 
 @Module({
   imports: [
     UsersModule,
+    TwoFactorModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRATION'),
-        },
+        signOptions: { expiresIn: '7d' },
       }),
       inject: [ConfigService],
     }),
