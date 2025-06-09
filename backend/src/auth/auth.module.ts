@@ -11,11 +11,13 @@ import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TokenBlacklistService } from './services/token-blacklist.service';
 import { TotpAuthModule } from '../totp-auth/totp-auth.module';
+import { FaceAuthModule } from '../face-auth/face-auth.module';
 
 @Module({
   imports: [
     UsersModule,
     TotpAuthModule,
+    FaceAuthModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

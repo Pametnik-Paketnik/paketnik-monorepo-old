@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { TokenBlacklistService } from './services/token-blacklist.service';
 import { TotpAuthService } from '../totp-auth/totp-auth.service';
 import { TotpLoginDto } from '../totp-auth/dto/totp-login.dto';
+import { FaceAuthService } from '../face-auth/face-auth.service';
 
 interface TempTokenPayload {
   sub: number;
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly tokenBlacklistService: TokenBlacklistService,
     private readonly totpAuthService: TotpAuthService,
+    private readonly faceAuthService: FaceAuthService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
@@ -71,8 +73,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Check if TOTP is enabled
-    if (user.totpEnabled) {
+    // Check if any 2FA is enabled
+    const hasTotp = user.totpEnabled;
+    const hasFace = user.faceEnabled;
+
+    if (hasTotp || hasFace) {
       // Generate temporary token (short-lived, 5 minutes)
       const tempPayload = {
         sub: user.id,
@@ -84,11 +89,33 @@ export class AuthService {
         expiresIn: '5m',
       });
 
+      // Build available 2FA methods
+      const available2FAMethods: Array<{
+        type: string;
+        enabled: boolean;
+        display_name: string;
+      }> = [];
+      if (hasTotp) {
+        available2FAMethods.push({
+          type: 'totp',
+          enabled: true,
+          display_name: 'Authenticator App',
+        });
+      }
+      if (hasFace) {
+        available2FAMethods.push({
+          type: 'face_id',
+          enabled: true,
+          display_name: 'Face ID',
+        });
+      }
+
       return {
         success: true,
-        message: 'Password verified. Please provide 2FA code.',
+        message: 'Password verified. Please choose your 2FA method.',
         twoFactorRequired: true,
         tempToken,
+        available_2fa_methods: available2FAMethods,
       };
     }
 
@@ -152,6 +179,56 @@ export class AuthService {
       };
     } catch {
       throw new UnauthorizedException('Invalid 2FA verification');
+    }
+  }
+
+  async verifyFaceLogin(
+    tempToken: string,
+    faceImage: Express.Multer.File,
+  ): Promise<LoginResponseDto> {
+    try {
+      // Verify the temporary token
+      const decoded =
+        await this.jwtService.verifyAsync<TempTokenPayload>(tempToken);
+
+      if (!decoded.twoFactorPending || decoded.type !== 'temp') {
+        throw new UnauthorizedException('Invalid temporary token');
+      }
+
+      // Verify the face using face auth service
+      const faceVerificationResult = await this.faceAuthService.verifyFace(
+        decoded.sub.toString(),
+        faceImage,
+      );
+
+      if (!faceVerificationResult.authenticated) {
+        throw new UnauthorizedException('Face verification failed');
+      }
+
+      // Get user info
+      const user = await this.usersService.findOne(decoded.sub);
+
+      // Generate final JWT token
+      const payload = { sub: user.id, email: user.email };
+      const token = await this.jwtService.signAsync(payload);
+
+      return {
+        success: true,
+        message: 'Login successful',
+        access_token: token,
+        user: {
+          id: user.id,
+          name: user.name,
+          surname: user.surname,
+          email: user.email,
+          userType: user.userType,
+        },
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Invalid Face ID verification');
     }
   }
 
