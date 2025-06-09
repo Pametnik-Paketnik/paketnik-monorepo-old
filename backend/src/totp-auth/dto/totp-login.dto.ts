@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, Length, IsNumberString } from 'class-validator';
 
-export class TwoFactorLoginDto {
+export class TotpLoginDto {
   @ApiProperty({
     description: 'Temporary token received after password verification',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',

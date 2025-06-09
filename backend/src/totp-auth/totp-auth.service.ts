@@ -12,7 +12,7 @@ import { SetupTotpResponseDto } from './dto/setup-totp-response.dto';
 import { CryptoService } from '../common/services/crypto.service';
 
 @Injectable()
-export class TwoFactorService {
+export class TotpAuthService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
@@ -65,19 +65,19 @@ export class TwoFactorService {
       throw new BadRequestException('Invalid TOTP code');
     }
 
-    // Enable 2FA for the user
-    user.twoFactorEnabled = true;
+    // Enable TOTP for the user
+    user.totpEnabled = true;
     await this.usersRepository.save(user);
 
     return {
       success: true,
-      message: '2FA has been successfully enabled',
+      message: 'TOTP 2FA has been successfully enabled',
     };
   }
 
   async verifyTotpCode(userId: number, code: string): Promise<boolean> {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
-    if (!user || !user.totpSecret || !user.twoFactorEnabled) {
+    if (!user || !user.totpSecret || !user.totpEnabled) {
       return false;
     }
 
@@ -99,27 +99,27 @@ export class TwoFactorService {
       throw new NotFoundException('User not found');
     }
 
-    // Disable 2FA and clear the secret
-    user.twoFactorEnabled = false;
+    // Disable TOTP and clear the secret
+    user.totpEnabled = false;
     user.totpSecret = null;
     await this.usersRepository.save(user);
 
     return {
       success: true,
-      message: '2FA has been disabled',
+      message: 'TOTP 2FA has been disabled',
     };
   }
 
-  async getTwoFactorStatus(userId: number): Promise<{ enabled: boolean }> {
+  async getTotpAuthStatus(userId: number): Promise<{ enabled: boolean }> {
     const user = await this.usersRepository.findOne({
       where: { id: userId },
-      select: ['id', 'twoFactorEnabled'],
+      select: ['id', 'totpEnabled'],
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    return { enabled: user.twoFactorEnabled };
+    return { enabled: user.totpEnabled };
   }
 }

@@ -7,8 +7,8 @@ import { compare } from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { TokenBlacklistService } from './services/token-blacklist.service';
-import { TwoFactorService } from '../two-factor/two-factor.service';
-import { TwoFactorLoginDto } from '../two-factor/dto/two-factor-login.dto';
+import { TotpAuthService } from '../totp-auth/totp-auth.service';
+import { TotpLoginDto } from '../totp-auth/dto/totp-login.dto';
 
 interface TempTokenPayload {
   sub: number;
@@ -26,7 +26,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly tokenBlacklistService: TokenBlacklistService,
-    private readonly twoFactorService: TwoFactorService,
+    private readonly totpAuthService: TotpAuthService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<LoginResponseDto> {
@@ -71,8 +71,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Check if 2FA is enabled
-    if (user.twoFactorEnabled) {
+    // Check if TOTP is enabled
+    if (user.totpEnabled) {
       // Generate temporary token (short-lived, 5 minutes)
       const tempPayload = {
         sub: user.id,
@@ -110,13 +110,11 @@ export class AuthService {
     };
   }
 
-  async verifyTwoFactorLogin(
-    twoFactorLoginDto: TwoFactorLoginDto,
-  ): Promise<LoginResponseDto> {
+  async verifyTotpLogin(totpLoginDto: TotpLoginDto): Promise<LoginResponseDto> {
     try {
       // Verify the temporary token
       const decoded = await this.jwtService.verifyAsync<TempTokenPayload>(
-        twoFactorLoginDto.tempToken,
+        totpLoginDto.tempToken,
       );
 
       if (!decoded.twoFactorPending || decoded.type !== 'temp') {
@@ -124,9 +122,9 @@ export class AuthService {
       }
 
       // Verify the TOTP code
-      const isValidCode = await this.twoFactorService.verifyTotpCode(
+      const isValidCode = await this.totpAuthService.verifyTotpCode(
         decoded.sub,
-        twoFactorLoginDto.code,
+        totpLoginDto.code,
       );
 
       if (!isValidCode) {

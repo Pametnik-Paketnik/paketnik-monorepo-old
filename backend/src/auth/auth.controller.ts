@@ -13,7 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { LogoutResponseDto } from './dto/logout-response.dto';
-import { TwoFactorLoginDto } from '../two-factor/dto/two-factor-login.dto';
+import { TotpLoginDto } from '../totp-auth/dto/totp-login.dto';
 import {
   ApiOperation,
   ApiResponse,
@@ -68,22 +68,22 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @Post('2fa/login')
+  @Post('2fa/totp/login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Complete login with 2FA code verification' })
+  @ApiOperation({ summary: 'Complete login with TOTP code verification' })
   @ApiResponse({
     status: 200,
-    description: 'Login successful after 2FA verification',
+    description: 'Login successful after TOTP verification',
     type: LoginResponseDto,
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid temporary token or 2FA code',
+    description: 'Invalid temporary token or TOTP code',
   })
-  async verifyTwoFactorLogin(
-    @Body() twoFactorLoginDto: TwoFactorLoginDto,
+  async verifyTotpLogin(
+    @Body() totpLoginDto: TotpLoginDto,
   ): Promise<LoginResponseDto> {
-    return this.authService.verifyTwoFactorLogin(twoFactorLoginDto);
+    return this.authService.verifyTotpLogin(totpLoginDto);
   }
 
   @Post('logout')

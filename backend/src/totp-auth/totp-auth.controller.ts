@@ -15,18 +15,18 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { TwoFactorService } from './two-factor.service';
+import { TotpAuthService } from './totp-auth.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VerifyTotpDto } from './dto/verify-totp.dto';
 import { SetupTotpResponseDto } from './dto/setup-totp-response.dto';
 import { RequestWithUser } from '../auth/interfaces/request-with-user.interface';
 
-@ApiTags('Two-Factor Authentication')
+@ApiTags('TOTP Authentication')
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard)
-@Controller('2fa')
-export class TwoFactorController {
-  constructor(private readonly twoFactorService: TwoFactorService) {}
+@Controller('2fa/totp')
+export class TotpAuthController {
+  constructor(private readonly totpAuthService: TotpAuthService) {}
 
   @Post('setup')
   @ApiOperation({ summary: 'Setup TOTP 2FA for the authenticated user' })
@@ -40,7 +40,7 @@ export class TwoFactorController {
     description: 'Unauthorized',
   })
   async setupTotp(@Req() req: RequestWithUser): Promise<SetupTotpResponseDto> {
-    return await this.twoFactorService.setupTotp(req.user.userId);
+    return await this.totpAuthService.setupTotp(req.user.userId);
   }
 
   @Post('verify-setup')
@@ -48,14 +48,14 @@ export class TwoFactorController {
   @ApiOperation({ summary: 'Verify TOTP setup with the first code' })
   @ApiResponse({
     status: 200,
-    description: '2FA has been successfully enabled',
+    description: 'TOTP 2FA has been successfully enabled',
     schema: {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
         message: {
           type: 'string',
-          example: '2FA has been successfully enabled',
+          example: 'TOTP 2FA has been successfully enabled',
         },
       },
     },
@@ -68,17 +68,17 @@ export class TwoFactorController {
     @Req() req: RequestWithUser,
     @Body() verifyTotpDto: VerifyTotpDto,
   ): Promise<{ success: boolean; message: string }> {
-    return await this.twoFactorService.verifyTotpSetup(
+    return await this.totpAuthService.verifyTotpSetup(
       req.user.userId,
       verifyTotpDto.code,
     );
   }
 
   @Get('status')
-  @ApiOperation({ summary: 'Get 2FA status for the authenticated user' })
+  @ApiOperation({ summary: 'Get TOTP 2FA status for the authenticated user' })
   @ApiResponse({
     status: 200,
-    description: 'Returns whether 2FA is enabled',
+    description: 'Returns whether TOTP 2FA is enabled',
     schema: {
       type: 'object',
       properties: {
@@ -86,23 +86,23 @@ export class TwoFactorController {
       },
     },
   })
-  async getTwoFactorStatus(
+  async getTotpAuthStatus(
     @Req() req: RequestWithUser,
   ): Promise<{ enabled: boolean }> {
-    return await this.twoFactorService.getTwoFactorStatus(req.user.userId);
+    return await this.totpAuthService.getTotpAuthStatus(req.user.userId);
   }
 
   @Delete('disable')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Disable 2FA for the authenticated user' })
+  @ApiOperation({ summary: 'Disable TOTP 2FA for the authenticated user' })
   @ApiResponse({
     status: 200,
-    description: '2FA has been disabled',
+    description: 'TOTP 2FA has been disabled',
     schema: {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
-        message: { type: 'string', example: '2FA has been disabled' },
+        message: { type: 'string', example: 'TOTP 2FA has been disabled' },
       },
     },
   })
@@ -113,6 +113,6 @@ export class TwoFactorController {
   async disableTotp(
     @Req() req: RequestWithUser,
   ): Promise<{ success: boolean; message: string }> {
-    return await this.twoFactorService.disableTotp(req.user.userId);
+    return await this.totpAuthService.disableTotp(req.user.userId);
   }
 }

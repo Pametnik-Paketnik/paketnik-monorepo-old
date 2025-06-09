@@ -14,7 +14,7 @@ import { FaceAuthModule } from './face-auth/face-auth.module';
 import { InventoryItemsModule } from './inventory-items/inventory-items.module';
 import { ExtraOrdersModule } from './extra-orders/extra-orders.module';
 import { CleanersModule } from './cleaners/cleaners.module';
-import { TwoFactorModule } from './two-factor/two-factor.module';
+import { TotpAuthModule } from './totp-auth/totp-auth.module';
 
 @Module({
   imports: [
@@ -42,7 +42,7 @@ import { TwoFactorModule } from './two-factor/two-factor.module';
     InventoryItemsModule,
     ExtraOrdersModule,
     CleanersModule,
-    TwoFactorModule,
+    TotpAuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
