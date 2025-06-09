@@ -10,7 +10,7 @@ services:
     ports:
       - "3000:3000"
     # HOT RELOADING - ENABLE BY UNCOMMENTING:
-    volumes:
+    # volumes:
       # - ./backend:/app         # Mount local source code for live reload
       # - /app/node_modules      # Keep container's node_modules
     env_file:
