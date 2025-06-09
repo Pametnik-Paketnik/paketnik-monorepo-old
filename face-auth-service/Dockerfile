@@ -8,8 +8,18 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy the source code
+COPY src/ ./src/
+COPY download_dataset.py .
+COPY startup.sh .
+
+# Create data directory
+RUN mkdir -p /app/data
+
+# Make startup script executable
+RUN chmod +x startup.sh
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 
+# Use startup script that downloads data then starts the app
+CMD ["./startup.sh"] 

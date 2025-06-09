@@ -7,3 +7,4 @@ mediapipe
 opencv-python-headless
 pillow
 minio
+kaggle
