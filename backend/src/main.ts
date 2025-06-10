@@ -5,18 +5,36 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { join } from 'path';
+import { Request, Response } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'debug', 'log', 'verbose'],
   });
 
-  // Enable CORS
+  // Enable CORS (allow file:// for local testing and all localhost ports)
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'], // Allow requests from both Vite dev server ports
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      /^file:\/\//, // Allow file:// protocol for local HTML files
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  });
+
+  // Serve static files for testing
+  app.useStaticAssets(join(__dirname, '..', 'test'), {
+    prefix: '/test/',
+  });
+
+  // Serve Firebase service worker at root (required by Firebase)
+  app.use('/firebase-messaging-sw.js', (req: Request, res: Response) => {
+    res.sendFile(join(__dirname, '..', 'test', 'firebase-messaging-sw.js'));
   });
 
   // global prefix for all routes

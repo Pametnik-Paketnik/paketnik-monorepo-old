@@ -18,6 +18,9 @@ export const envValidationSchema = Joi.object({
   // Encryption
   ENCRYPTION_KEY: Joi.string().min(32).required(),
 
+  // Firebase Configuration
+  FIREBASE_SERVICE_ACCOUNT_PATH: Joi.string().required(),
+
   // Direct4me
   DIRECT4ME_TOKEN: Joi.string().required(),
   DIRECT4ME_BASEURL: Joi.string().required(),

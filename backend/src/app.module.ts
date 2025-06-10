@@ -15,6 +15,7 @@ import { InventoryItemsModule } from './inventory-items/inventory-items.module';
 import { ExtraOrdersModule } from './extra-orders/extra-orders.module';
 import { CleanersModule } from './cleaners/cleaners.module';
 import { TotpAuthModule } from './totp-auth/totp-auth.module';
+import { FirebaseModule } from './firebase/firebase.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TotpAuthModule } from './totp-auth/totp-auth.module';
         getDatabaseConfig(configService),
       inject: [ConfigService],
     }),
+    FirebaseModule,
     StorageModule,
     UsersModule,
     AuthModule,
