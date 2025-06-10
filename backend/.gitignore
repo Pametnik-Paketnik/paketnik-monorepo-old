@@ -63,3 +63,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 .pnpm-store/
 
 /testing/
+
+pametnipaketnik-4b073-firebase-adminsdk-fbsvc-bc66650df5.json
+*.json

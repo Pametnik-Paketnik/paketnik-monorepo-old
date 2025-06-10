@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Face ID Protocol Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+        }
+
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #2196F3;
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 3px;
+            min-width: 100px;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-success { background: linear-gradient(45deg, #27ae60, #2ecc71); }
+        .btn-warning { background: linear-gradient(45deg, #f39c12, #e67e22); }
+        .btn-danger { background: linear-gradient(45deg, #e74c3c, #c0392b); }
+        .btn-small { padding: 6px 12px; font-size: 12px; min-width: 80px; }
+
+        .result {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid #2196F3;
+            background: #f8f9ff;
+            word-wrap: break-word;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+
+        .result.success {
+            border-left-color: #27ae60;
+            background: #f8fff8;
+        }
+
+        .result.error {
+            border-left-color: #e74c3c;
+            background: #fff8f8;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-connected {
+            background: #27ae60;
+            animation: pulse 2s infinite;
+        }
+
+        .status-disconnected {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .websocket-log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            height: 350px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin: 1px 0;
+            padding: 1px 0;
+        }
+
+        .log-info { color: #3498db; }
+        .log-success { color: #2ecc71; }
+        .log-error { color: #e74c3c; }
+        .log-warning { color: #f39c12; }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .step-box {
+            border: 2px dashed #2196F3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9ff;
+        }
+
+        .step-box.active {
+            border-color: #27ae60;
+            background: #f8fff8;
+        }
+
+        .step-box.completed {
+            border-color: #27ae60;
+            border-style: solid;
+            background: #f0f9ff;
+        }
+
+        .step-number {
+            display: inline-block;
+            background: #2196F3;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            line-height: 25px;
+            text-align: center;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 12px;
+        }
+
+        .step-box.completed .step-number {
+            background: #27ae60;
+        }
+
+        .debug-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .request-info {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            margin: 10px 0;
+        }
+
+        .jwt-token-display {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-wrap: break-word;
+            border: 2px solid #2ecc71;
+        }
+
+        .jwt-token-display h4 {
+            margin: 0 0 10px 0;
+            color: white;
+            font-size: 14px;
+        }
+
+        .token-text {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+            word-break: break-all;
+            margin: 5px 0;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .auth-success-panel {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .auth-success-panel h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+
+        .grid-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 WebSocket Face ID Protocol Tester</h1>
+            <p>Test the complete real-time Face ID authentication flow</p>
+        </div>
+
+        <div class="content">
+            <!-- Step 1: Authentication -->
+            <div class="section">
+                <h2>🔑 Step 1: Get Authentication Token</h2>
+                
+                <div class="step-box" id="loginStep">
+                    <span class="step-number">1</span>
+                    <strong>Login to get temp token</strong>
+                    
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" value="test@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password:</label>
+                        <input type="password" id="password" value="password123">
+                    </div>
+
+                    <button class="btn" onclick="performLogin()">🚀 Login</button>
+                    <button class="btn btn-small btn-warning" onclick="clearLogin()">Clear</button>
+                </div>
+
+                <div id="loginResult"></div>
+
+                <div class="debug-info" id="tokenInfo" style="display: none;">
+                    <strong>Debug Info:</strong><br>
+                    <span id="tokenDisplay"></span>
+                </div>
+            </div>
+
+            <!-- Step 2: WebSocket -->
+            <div class="section">
+                <h2>🔌 Step 2: WebSocket Connection</h2>
+                
+                <div class="step-box" id="websocketStep">
+                    <span class="step-number">2</span>
+                    <strong>Connect to WebSocket</strong>
+                    
+                    <div style="margin: 10px 0;">
+                        <span id="wsStatus" class="status-indicator status-disconnected"></span>
+                        <span id="wsStatusText">Disconnected</span>
+                    </div>
+
+                    <div class="grid-buttons">
+                        <button class="btn" id="wsConnectBtn" onclick="connectWebSocket()">Connect</button>
+                        <button class="btn btn-danger" id="wsDisconnectBtn" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+                    </div>
+                </div>
+
+                <div class="websocket-log" id="websocketLog"></div>
+            </div>
+
+            <!-- Step 3: Face ID Flow -->
+            <div class="section full-width">
+                <h2>📱 Step 3: Face ID Authentication Protocol</h2>
+                
+                <div class="step-box" id="faceAuthStep">
+                    <span class="step-number">3</span>
+                    <strong>Initiate Face ID Request</strong>
+                    
+                    <div class="grid-buttons">
+                        <button class="btn btn-success" id="initiateFaceAuthBtn" onclick="initiateFaceAuth()" disabled>
+                            🎯 Start Face ID Request
+                        </button>
+                        <button class="btn btn-warning" onclick="checkRequestStatus()" disabled id="checkStatusBtn">
+                            📊 Check Status
+                        </button>
+                    </div>
+
+                    <div class="debug-info">
+                        <strong>Protocol Steps:</strong><br>
+                        1. Backend creates Face ID request in database<br>
+                        2. Backend sends FCM push notifications to user devices<br>
+                        3. WebSocket room is created for real-time updates<br>
+                        4. Frontend joins WebSocket room<br>
+                        5. Mobile app captures face image and sends to backend<br>
+                        6. Backend verifies face with microservice<br>
+                        7. Real-time verification result via WebSocket<br>
+                        8. JWT token sent to web client (if successful)
+                    </div>
+                </div>
+
+                <div class="step-box" id="simulationStep" style="display: none;">
+                    <span class="step-number">4</span>
+                    <strong>Simulate Mobile App Face Verification</strong>
+                    
+                    <div class="grid-buttons">
+                        <button class="btn btn-success" id="simulateSuccessBtn" onclick="simulateFaceAuthSuccess()" disabled>
+                            ✅ Send Valid Face Image
+                        </button>
+                        <button class="btn btn-danger" id="simulateFailureBtn" onclick="simulateFaceAuthFailure()" disabled>
+                            ❌ Send Invalid Face Image
+                        </button>
+                    </div>
+                    
+                    <div class="debug-info">
+                        <strong>Note:</strong> Mobile app now sends actual face image for verification with the face recognition microservice.
+                    </div>
+                </div>
+
+                <div id="faceAuthResult"></div>
+
+                <!-- Authentication Success Panel -->
+                <div id="authSuccessPanel" style="display: none;">
+                    <div class="auth-success-panel">
+                        <h3>🎉 Face ID Authentication Successful!</h3>
+                        <p>You are now logged in with a valid JWT token.</p>
+                    </div>
+                    
+                    <div class="jwt-token-display" id="jwtTokenDisplay">
+                        <h4>🔑 JWT Access Token:</h4>
+                        <div class="token-text" id="jwtTokenText"></div>
+                        <button class="copy-btn" onclick="copyTokenToClipboard()">📋 Copy Token</button>
+                        <button class="copy-btn" onclick="analyzeToken()" style="margin-left: 10px;">🔍 Analyze Token</button>
+                    </div>
+
+                    <div id="tokenAnalysis" style="display: none;">
+                        <h4 style="color: #2c3e50; margin: 15px 0 10px 0;">🔍 Token Analysis:</h4>
+                        <div class="request-info" id="tokenAnalysisDisplay"></div>
+                    </div>
+                </div>
+
+                <!-- Request Status Display -->
+                <div id="currentRequestStatus" style="display: none;">
+                    <h3 style="margin: 15px 0 10px 0; color: #2c3e50;">📋 Current Request Status:</h3>
+                    <div class="request-info" id="requestStatusDisplay"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Socket.IO Client -->
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    
+    <script>
+        // Global state
+        let tempToken = null;
+        let currentSocket = null;
+        let currentRequestId = null;
+        let currentFaceAuthRequest = null;
+
+        // Utility functions
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `result ${type}`;
+        }
+
+        function logWebSocket(message, type = 'info') {
+            const log = document.getElementById('websocketLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function updateStepStatus(stepId, status) {
+            const step = document.getElementById(stepId);
+            step.className = 'step-box';
+            if (status === 'active') step.classList.add('active');
+            if (status === 'completed') step.classList.add('completed');
+        }
+
+        function updateWSStatus(connected) {
+            const status = document.getElementById('wsStatus');
+            const statusText = document.getElementById('wsStatusText');
+            const connectBtn = document.getElementById('wsConnectBtn');
+            const disconnectBtn = document.getElementById('wsDisconnectBtn');
+
+            if (connected) {
+                status.className = 'status-indicator status-connected';
+                statusText.textContent = 'Connected to /face-auth namespace';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                updateStepStatus('websocketStep', 'completed');
+            } else {
+                status.className = 'status-indicator status-disconnected';
+                statusText.textContent = 'Disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                updateStepStatus('websocketStep', '');
+            }
+            updateButtonStates();
+        }
+
+        function updateButtonStates() {
+            const initiateFaceAuthBtn = document.getElementById('initiateFaceAuthBtn');
+            const simulateSuccessBtn = document.getElementById('simulateSuccessBtn');
+            const simulateFailureBtn = document.getElementById('simulateFailureBtn');
+            const checkStatusBtn = document.getElementById('checkStatusBtn');
+
+            const hasAuth = tempToken && currentSocket && currentSocket.connected;
+            const hasRequest = currentRequestId;
+
+            initiateFaceAuthBtn.disabled = !hasAuth;
+            checkStatusBtn.disabled = !hasRequest;
+            simulateSuccessBtn.disabled = !hasRequest;
+            simulateFailureBtn.disabled = !hasRequest;
+
+            // Show simulation step when request is active
+            const simulationStep = document.getElementById('simulationStep');
+            if (hasRequest) {
+                simulationStep.style.display = 'block';
+                updateStepStatus('faceAuthStep', 'completed');
+            } else {
+                simulationStep.style.display = 'none';
+            }
+        }
+
+        // Step 1: Login
+        async function performLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            updateStepStatus('loginStep', 'active');
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.twoFactorRequired) {
+                    tempToken = data.tempToken;
+                    
+                    // Update debug info
+                    document.getElementById('tokenInfo').style.display = 'block';
+                    document.getElementById('tokenDisplay').textContent = `Temp Token: ${tempToken.substring(0, 30)}...`;
+                    
+                    showResult('loginResult', 
+                        `✅ Login successful! 2FA required.\n\nAvailable methods: ${data.available_2fa_methods.map(m => m.display_name).join(', ')}`, 
+                        'success'
+                    );
+                    
+                    updateStepStatus('loginStep', 'completed');
+                    updateStepStatus('websocketStep', 'active');
+                    updateButtonStates();
+                    
+                    logWebSocket(`✅ Login successful, got temp token for user: ${email}`, 'success');
+                } else if (data.success) {
+                    showResult('loginResult', '✅ Login successful (no 2FA required)', 'success');
+                } else {
+                    showResult('loginResult', `❌ Login failed: ${data.message}`, 'error');
+                    updateStepStatus('loginStep', '');
+                }
+            } catch (error) {
+                showResult('loginResult', `❌ Error: ${error.message}`, 'error');
+                updateStepStatus('loginStep', '');
+            }
+        }
+
+        function clearLogin() {
+            tempToken = null;
+            document.getElementById('tokenInfo').style.display = 'none';
+            document.getElementById('authSuccessPanel').style.display = 'none';
+            document.getElementById('tokenAnalysis').style.display = 'none';
+            showResult('loginResult', '', 'info');
+            updateStepStatus('loginStep', '');
+            updateStepStatus('websocketStep', '');
+            updateStepStatus('faceAuthStep', '');
+            updateButtonStates();
+            logWebSocket('🔄 Login cleared', 'warning');
+        }
+
+        // Step 2: WebSocket Connection
+        function connectWebSocket() {
+            if (currentSocket) {
+                disconnectWebSocket();
+            }
+
+            updateStepStatus('websocketStep', 'active');
+            logWebSocket('🔌 Attempting to connect to WebSocket /face-auth namespace...', 'info');
+
+            try {
+                currentSocket = io('/face-auth', {
+                    transports: ['websocket', 'polling'],
+                    timeout: 20000,
+                    forceNew: true
+                });
+
+                currentSocket.on('connect', () => {
+                    logWebSocket('✅ Connected to WebSocket server', 'success');
+                    logWebSocket(`📡 Socket ID: ${currentSocket.id}`, 'info');
+                    updateWSStatus(true);
+                    updateStepStatus('faceAuthStep', 'active');
+                });
+
+                currentSocket.on('disconnect', (reason) => {
+                    logWebSocket(`❌ Disconnected from WebSocket: ${reason}`, 'error');
+                    updateWSStatus(false);
+                });
+
+                currentSocket.on('connect_error', (error) => {
+                    logWebSocket(`❌ Connection error: ${error.message}`, 'error');
+                    updateWSStatus(false);
+                    updateStepStatus('websocketStep', '');
+                });
+
+                // Face Auth specific events
+                currentSocket.on('joined_room', (data) => {
+                    logWebSocket(`✅ Joined WebSocket room: ${data.requestId}`, 'success');
+                    logWebSocket(`📝 Room message: ${data.message}`, 'info');
+                });
+
+                currentSocket.on('face_auth_status', (data) => {
+                    logWebSocket(`📊 Status update: ${data.status}`, 'info');
+                    if (data.message) {
+                        logWebSocket(`📝 Status message: ${data.message}`, 'info');
+                    }
+                    updateRequestStatus(data);
+                });
+
+                currentSocket.on('face_auth_complete', (data) => {
+                    logWebSocket(`🎉 WebSocket: Face auth completed: ${data.success ? 'SUCCESS' : 'FAILED'}`, 
+                        data.success ? 'success' : 'error');
+                    logWebSocket(`📦 WebSocket data structure: ${JSON.stringify(data, null, 2)}`, 'info');
+                    handleFaceAuthComplete(data);
+                });
+
+                currentSocket.on('face_auth_error', (data) => {
+                    logWebSocket(`❌ Face auth error: ${data.message}`, 'error');
+                });
+
+                currentSocket.on('left_room', (data) => {
+                    logWebSocket(`👋 Left room: ${data.requestId}`, 'warning');
+                });
+
+            } catch (error) {
+                logWebSocket(`❌ Failed to create WebSocket connection: ${error.message}`, 'error');
+                updateStepStatus('websocketStep', '');
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (currentSocket) {
+                currentSocket.disconnect();
+                currentSocket = null;
+                updateWSStatus(false);
+                logWebSocket('🔌 WebSocket disconnected manually', 'warning');
+            }
+        }
+
+        // Step 3: Face ID Authentication Flow
+        async function initiateFaceAuth() {
+            if (!tempToken) {
+                showResult('faceAuthResult', '❌ No temp token available. Please login first.', 'error');
+                return;
+            }
+
+            if (!currentSocket || !currentSocket.connected) {
+                showResult('faceAuthResult', '❌ WebSocket not connected. Please connect first.', 'error');
+                return;
+            }
+
+            updateStepStatus('faceAuthStep', 'active');
+            logWebSocket('🎯 Initiating Face ID authentication request...', 'info');
+
+            try {
+                const response = await fetch('/api/auth/2fa/face/login/web', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tempToken: tempToken,
+                        timeoutMinutes: 5,
+                        deviceInfo: 'WebSocket Tester',
+                        metadata: {
+                            testMode: true,
+                            testerVersion: '1.0',
+                            timestamp: new Date().toISOString(),
+                        }
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentRequestId = data.requestId;
+                    currentFaceAuthRequest = data;
+                    
+                    showResult('faceAuthResult', 
+                        `🎯 Face ID request initiated successfully!\n\nRequest ID: ${data.requestId}\nDevices notified: ${data.devicesNotified}\nWebSocket room: ${data.websocketRoom}\nExpires at: ${new Date(data.expiresAt).toLocaleTimeString()}`, 
+                        'success'
+                    );
+
+                    // Join WebSocket room
+                    logWebSocket(`🏠 Joining WebSocket room: face_auth_${data.requestId}`, 'info');
+                    currentSocket.emit('join_face_auth_room', {
+                        requestId: data.requestId,
+                        tempToken: tempToken
+                    });
+
+                    // Show request status
+                    updateRequestStatusDisplay(data);
+                    updateButtonStates();
+                    
+                    // Hide any previous success panel
+                    document.getElementById('authSuccessPanel').style.display = 'none';
+
+                    logWebSocket(`🎯 Face ID request created: ${data.requestId}`, 'success');
+                    logWebSocket(`📱 FCM notifications sent to ${data.devicesNotified} devices`, 'info');
+
+                } else {
+                    showResult('faceAuthResult', `❌ Failed to initiate Face ID: ${data.message}`, 'error');
+                    logWebSocket(`❌ Face ID initiation failed: ${data.message}`, 'error');
+                    updateStepStatus('faceAuthStep', '');
+                }
+            } catch (error) {
+                showResult('faceAuthResult', `❌ Error: ${error.message}`, 'error');
+                logWebSocket(`❌ Face ID initiation error: ${error.message}`, 'error');
+                updateStepStatus('faceAuthStep', '');
+            }
+        }
+
+        async function checkRequestStatus() {
+            if (!currentRequestId) return;
+
+            try {
+                const response = await fetch(`/api/auth/2fa/face/status/${currentRequestId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateRequestStatusDisplay(data);
+                    logWebSocket(`📊 Status check: ${data.status}`, 'info');
+                } else {
+                    logWebSocket(`❌ Status check failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                logWebSocket(`❌ Status check error: ${error.message}`, 'error');
+            }
+        }
+
+                                async function simulateFaceAuthSuccess() {
+            if (!currentRequestId) return;
+
+            logWebSocket('✅ Simulating successful Face ID completion with face image...', 'info');
+
+            try {
+                // Create a mock face image for testing
+                const formData = new FormData();
+                const mockImageBlob = new Blob(['mock face image data'], { type: 'image/jpeg' });
+                formData.append('face_image', mockImageBlob, 'face.jpg');
+
+                const response = await fetch(`/api/auth/2fa/face/complete/${currentRequestId}`, {
+                    method: 'POST',
+                    body: formData, // Send face image as multipart/form-data
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    logWebSocket(`✅ Mobile app response: ${data.success ? 'SUCCESS' : 'FAILED'} - ${data.message}`, 'success');
+                    logWebSocket(`📱 Mobile app sent face image for verification`, 'info');
+                    logWebSocket(`🔬 Face verification result: ${data.success ? 'PASSED' : 'FAILED'}`, data.success ? 'success' : 'error');
+                } else {
+                    logWebSocket(`❌ Face verification failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                logWebSocket(`❌ Simulation error: ${error.message}`, 'error');
+            }
+        }
+
+        async function simulateFaceAuthFailure() {
+            if (!currentRequestId) return;
+
+            logWebSocket('❌ Simulating failed Face ID completion with invalid face...', 'info');
+
+            try {
+                // Create a mock invalid face image for testing
+                const formData = new FormData();
+                const mockInvalidImageBlob = new Blob(['invalid face image data'], { type: 'image/jpeg' });
+                formData.append('face_image', mockInvalidImageBlob, 'invalid_face.jpg');
+
+                const response = await fetch(`/api/auth/2fa/face/complete/${currentRequestId}`, {
+                    method: 'POST',
+                    body: formData, // Send invalid face image as multipart/form-data
+                });
+
+                const data = await response.json();
+                logWebSocket(`❌ Mobile app response: ${data.success ? 'SUCCESS' : 'FAILED'} - ${data.message}`, 'warning');
+                logWebSocket(`🔬 Face verification should fail with invalid image`, 'warning');
+            } catch (error) {
+                logWebSocket(`❌ Simulation error: ${error.message}`, 'error');
+            }
+        }
+
+        function updateRequestStatus(data) {
+            updateRequestStatusDisplay({
+                ...currentFaceAuthRequest,
+                lastWebSocketUpdate: data,
+                timestamp: new Date().toISOString(),
+            });
+        }
+
+        function updateRequestStatusDisplay(data) {
+            const section = document.getElementById('currentRequestStatus');
+            const display = document.getElementById('requestStatusDisplay');
+            
+            section.style.display = 'block';
+            display.textContent = JSON.stringify(data, null, 2);
+        }
+
+        function handleFaceAuthComplete(data) {
+            if (data.success) {
+                showResult('faceAuthResult', 
+                    `🎉 Face ID Authentication Successful!\n\nAuthentication flow completed successfully.`, 
+                    'success'
+                );
+                
+                logWebSocket(`🎉 Authentication flow completed successfully!`, 'success');
+                
+                if (data.data && data.data.access_token) {
+                    // Show the success panel with JWT token
+                    displayJWTToken(data.data.access_token, data.data.user);
+                    logWebSocket(`🔑 Received access token: ${data.data.access_token.substring(0, 20)}...`, 'success');
+                    logWebSocket(`👤 User authenticated: ${data.data.user.email}`, 'success');
+                }
+                
+                // Clear current request
+                currentRequestId = null;
+                currentFaceAuthRequest = null;
+                updateButtonStates();
+                
+            } else {
+                showResult('faceAuthResult', 
+                    `❌ Face ID Authentication Failed: ${data.error || data.message}`, 
+                    'error'
+                );
+                logWebSocket(`❌ Authentication flow failed: ${data.error || data.message}`, 'error');
+            }
+        }
+
+        function displayJWTToken(token, user) {
+            // Show the success panel
+            document.getElementById('authSuccessPanel').style.display = 'block';
+            
+            // Display the JWT token
+            document.getElementById('jwtTokenText').textContent = token;
+            
+            // Update the success message with user info
+            const successPanel = document.querySelector('.auth-success-panel p');
+            successPanel.innerHTML = `Welcome back, <strong>${user.name} ${user.surname}</strong>!<br>You are now logged in with a valid JWT token.`;
+            
+            // Hide request status when showing success
+            document.getElementById('currentRequestStatus').style.display = 'none';
+        }
+
+        function copyTokenToClipboard() {
+            const tokenText = document.getElementById('jwtTokenText').textContent;
+            navigator.clipboard.writeText(tokenText).then(() => {
+                logWebSocket('📋 JWT token copied to clipboard', 'success');
+                
+                // Briefly change button text
+                const copyBtn = event.target;
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✅ Copied!';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            }).catch(() => {
+                logWebSocket('❌ Failed to copy token to clipboard', 'error');
+            });
+        }
+
+        function analyzeToken() {
+            const tokenText = document.getElementById('jwtTokenText').textContent;
+            
+            try {
+                // Decode JWT token (just the payload, not verifying signature)
+                const parts = tokenText.split('.');
+                if (parts.length !== 3) {
+                    throw new Error('Invalid JWT format');
+                }
+                
+                const header = JSON.parse(atob(parts[0]));
+                const payload = JSON.parse(atob(parts[1]));
+                
+                const analysis = {
+                    header: header,
+                    payload: {
+                        ...payload,
+                        iat_readable: payload.iat ? new Date(payload.iat * 1000).toLocaleString() : 'N/A',
+                        exp_readable: payload.exp ? new Date(payload.exp * 1000).toLocaleString() : 'N/A'
+                    },
+                    signature: parts[2].substring(0, 20) + '...',
+                    valid_until: payload.exp ? new Date(payload.exp * 1000).toLocaleString() : 'No expiration'
+                };
+                
+                document.getElementById('tokenAnalysisDisplay').textContent = JSON.stringify(analysis, null, 2);
+                document.getElementById('tokenAnalysis').style.display = 'block';
+                
+                logWebSocket('🔍 JWT token analyzed and displayed', 'info');
+            } catch (error) {
+                logWebSocket(`❌ Failed to analyze token: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            updateButtonStates();
+            logWebSocket('🚀 WebSocket Face ID Protocol Tester loaded', 'info');
+            logWebSocket('📖 Follow the steps in order:', 'info');
+            logWebSocket('1️⃣ Login to get temp token', 'info');
+            logWebSocket('2️⃣ Connect to WebSocket /face-auth namespace', 'info');
+            logWebSocket('3️⃣ Initiate Face ID request', 'info');
+            logWebSocket('4️⃣ Simulate mobile app response', 'info');
+            logWebSocket('👀 Watch real-time WebSocket events in this log', 'info');
+        });
+    </script>
+</body>
+</html> 

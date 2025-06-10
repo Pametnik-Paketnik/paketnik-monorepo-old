@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TwoFactorService } from './two-factor.service';
+import { TotpAuthService } from './totp-auth.service';
 
-describe('TwoFactorService', () => {
-  let service: TwoFactorService;
+describe('TotpAuthService', () => {
+  let service: TotpAuthService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TwoFactorService],
+      providers: [TotpAuthService],
     }).compile();
 
-    service = module.get<TwoFactorService>(TwoFactorService);
+    service = module.get<TotpAuthService>(TotpAuthService);
   });
 
   it('should be defined', () => {

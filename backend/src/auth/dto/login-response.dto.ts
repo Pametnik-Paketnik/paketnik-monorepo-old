@@ -37,6 +37,29 @@ export class LoginResponseDto {
   tempToken?: string;
 
   @ApiProperty({
+    description:
+      'Available 2FA methods for the user (only when 2FA is required)',
+    example: [
+      {
+        type: 'totp',
+        enabled: true,
+        display_name: 'Authenticator App',
+      },
+      {
+        type: 'face_id',
+        enabled: true,
+        display_name: 'Face ID',
+      },
+    ],
+    required: false,
+  })
+  available_2fa_methods?: Array<{
+    type: string;
+    enabled: boolean;
+    display_name: string;
+  }>;
+
+  @ApiProperty({
     description: 'User information (only present when login is complete)',
     example: {
       id: 1,

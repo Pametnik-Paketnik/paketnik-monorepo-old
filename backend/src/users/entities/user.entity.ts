@@ -47,8 +47,11 @@ export class User {
   @Exclude()
   totpSecret: string | null;
 
-  @Column({ name: 'two_factor_enabled', default: false })
-  twoFactorEnabled: boolean;
+  @Column({ name: 'totp_enabled', default: false })
+  totpEnabled: boolean;
+
+  @Column({ name: 'face_enabled', default: false })
+  faceEnabled: boolean;
 
   // Relationship: Each cleaner belongs to exactly one host
   @ManyToOne(() => User, (user) => user.cleaners, { nullable: true })

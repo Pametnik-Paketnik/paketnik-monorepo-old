@@ -250,6 +250,6 @@ export class FaceAuthController {
     if (!userId) {
       throw new HttpException('User ID not found', HttpStatus.UNAUTHORIZED);
     }
-    return this.faceAuthService.deleteUser(userId);
+    return this.faceAuthService.deleteFaceData(userId);
   }
 }

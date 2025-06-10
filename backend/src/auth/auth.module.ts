@@ -10,12 +10,20 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { HttpModule } from '@nestjs/axios';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TokenBlacklistService } from './services/token-blacklist.service';
-import { TwoFactorModule } from '../two-factor/two-factor.module';
+import { TotpAuthModule } from '../totp-auth/totp-auth.module';
+import { FaceAuthModule } from '../face-auth/face-auth.module';
+import { FaceAuthRequest } from './entities/face-auth-request.entity';
+import { FaceAuthRequestService } from './services/face-auth-request.service';
+import { FirebaseModule } from '../firebase/firebase.module';
+import { WebSocketsModule } from '../websockets/websockets.module';
 
 @Module({
   imports: [
     UsersModule,
-    TwoFactorModule,
+    TotpAuthModule,
+    FaceAuthModule,
+    FirebaseModule,
+    WebSocketsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -26,10 +34,16 @@ import { TwoFactorModule } from '../two-factor/two-factor.module';
       inject: [ConfigService],
     }),
     HttpModule,
-    TypeOrmModule.forFeature([]),
+    TypeOrmModule.forFeature([FaceAuthRequest]),
   ],
-  providers: [AuthService, JwtStrategy, TokenBlacklistService, JwtAuthGuard],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    TokenBlacklistService,
+    JwtAuthGuard,
+    FaceAuthRequestService,
+  ],
   controllers: [AuthController],
-  exports: [JwtAuthGuard],
+  exports: [JwtAuthGuard, FaceAuthRequestService],
 })
 export class AuthModule {}
