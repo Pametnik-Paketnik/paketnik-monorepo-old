@@ -76,10 +76,24 @@ export function FaceIdWebSocket() {
             if (event.success && event.data && event.data.user && event.data.access_token) {
               // Check user type - only HOST users can access dashboard
               if (event.data.user.userType !== "HOST") {
+                // Clean up WebSocket connection on access denied
+                if (faceAuthRequestId) {
+                  wsService.leaveRoom(faceAuthRequestId);
+                }
+                wsService.removeAllListeners();
+                wsService.disconnect();
+                
                 dispatch(updateFaceAuthStatus('failed'));
                 setError("Access denied. Only HOST users can access the dashboard.");
                 return;
               }
+              
+              // Clean up WebSocket connection before navigation
+              if (faceAuthRequestId) {
+                wsService.leaveRoom(faceAuthRequestId);
+              }
+              wsService.removeAllListeners();
+              wsService.disconnect();
               
               // Save credentials and redirect to dashboard
               dispatch(setCredentials({
@@ -104,6 +118,10 @@ export function FaceIdWebSocket() {
             if (!mounted) return;
             setError(error.message);
             dispatch(updateFaceAuthStatus('failed'));
+            
+            // Clean up WebSocket connection on error
+            wsService.removeAllListeners();
+            wsService.disconnect();
           });
         }
       } catch (err) {
@@ -159,7 +177,18 @@ export function FaceIdWebSocket() {
 
   const handleRetry = () => {
     setError(null);
+    
+    // Clean up any existing WebSocket connection before retrying
+    if (faceAuthRequestId) {
+      wsService.leaveRoom(faceAuthRequestId);
+    }
+    wsService.removeAllListeners();
+    wsService.disconnect();
+    
+    // Reset the face auth request to trigger re-initialization
+    dispatch(setFaceAuthRequest({ requestId: '', status: 'idle' }));
     dispatch(updateFaceAuthStatus('idle'));
+    
     // This will trigger the useEffect to initiate again
   };
 
