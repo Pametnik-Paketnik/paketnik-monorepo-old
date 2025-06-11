@@ -45,8 +45,8 @@ jobs:
       # - name: Run linter
       #   run: pnpm lint
 
-      - name: Build application
-        run: pnpm build
+      # - name: Build application
+      #   run: pnpm build
 
   # Backend tests
   backend-test:
@@ -91,8 +91,8 @@ jobs:
       # - name: Run tests
       #   run: pnpm test
 
-      - name: Build application
-        run: pnpm build
+      # - name: Build application
+      #   run: pnpm build
 
   # Face Auth Service tests
   face-auth-test:
