@@ -13,18 +13,12 @@ async function bootstrap() {
     logger: ['error', 'warn', 'debug', 'log', 'verbose'],
   });
 
-  // Enable CORS (allow file:// for local testing and all localhost ports)
+  // Enable CORS - ALLOW ALL ORIGINS 🌐
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      /^file:\/\//, // Allow file:// protocol for local HTML files
-    ],
+    origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-User-ID'],  // Added X-User-ID
   });
 
   // Serve static files for testing
