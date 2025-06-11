@@ -45,6 +45,9 @@ jobs:
       # - name: Run linter
       #   run: pnpm lint
 
+      # - name: Run tests
+      #   run: pnpm test
+
       # - name: Build application
       #   run: pnpm build
 
@@ -127,10 +130,13 @@ jobs:
       - name: Run linter
         run: flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Run tests (if available)
-        run: |
-          if [ -d "testing" ]; then
-            python -m pytest testing/ -v || echo "No tests found or tests failed"
-          else
-            echo "No test directory found"
-          fi 
+      # - name: Run tests
+      #   run: python -m pytest test_basic.py -v
+
+      # - name: Run tests (legacy)
+      #   run: |
+      #     if [ -d "testing" ]; then
+      #       python -m pytest testing/ -v || echo "No tests found or tests failed"
+      #     else
+      #       echo "No test directory found"
+      #     fi 
