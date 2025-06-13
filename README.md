@@ -115,3 +115,5 @@ We maintain strict code standards to ensure clean, structured, and collaborative
 - scikit-learnî
 
 Pimp Nikola
+
+pa se tau nj rajs
