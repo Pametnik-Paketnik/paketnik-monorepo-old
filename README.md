@@ -113,3 +113,5 @@ We maintain strict code standards to ensure clean, structured, and collaborative
 - FastAPI
 - OpenCV
 - scikit-learnî
+
+Pimp Nikola
