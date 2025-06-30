@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# test commit ali je verifjed ali ni?
+
 # Deployment script for Paketnik application
 
 set -e
